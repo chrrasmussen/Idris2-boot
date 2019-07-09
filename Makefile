@@ -51,7 +51,7 @@ network: prelude
 	make -C libs/network IDRIS2=../../idris2
 	make -C libs/network test IDRIS2=../../idris2
 
-libs : prelude base network
+libs : prelude base
 
 clean: clean-libs
 	make -C src clean
@@ -68,17 +68,19 @@ test:
 	idris --build tests.ipkg
 	@make -C tests only=$(only)
 
-install: all install-exec install-support install-libs
+install: install-exec install-support install-libs
 
 install-support:
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
+	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/erlang
 	install support/chez/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
 	install support/chicken/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
 	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
+	install support/erlang/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/erlang
 
-install-exec: idris2
+install-exec:
 	mkdir -p ${PREFIX}/bin
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
 	install idris2 ${PREFIX}/bin
