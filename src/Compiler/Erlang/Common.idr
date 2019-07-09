@@ -29,7 +29,7 @@ getNamespace n = []
 
 genName : Name -> String
 genName (NS ns n) = "ns--" ++ showSep "-" ns ++ "--" ++ genName n
-genName (UN n) = n
+genName (UN n) = "un--" ++ n
 genName (MN n i) = n ++ "_" ++ show i
 genName (PV n d) = "pat--" ++ genName n
 genName (DN _ n) = "dn--" ++ genName n
@@ -38,8 +38,11 @@ genName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
 genName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
 genName (Resolved i) = "fn--" ++ show i
 
+moduleNameFromNS : List String -> String
+moduleNameFromNS ns = showSep "." ("Idris" :: reverse ns)
+
 genModuleName : Name -> String
-genModuleName n = showSep "." ("Idris" :: reverse (getNamespace n))
+genModuleName n = moduleNameFromNS (getNamespace n)
 
 genModuleNameFunctionName : Name -> (String, String)
 genModuleNameFunctionName n@(NS ns dcons) = (genModuleName n, genName dcons)
@@ -59,6 +62,12 @@ genVariableName : String -> Int -> String
 genVariableName n i = genName (MN n i)
 
 genConstructorName : Name -> String
+genConstructorName (NS ns (UN dcons)) =
+  let modName = moduleNameFromNS ns
+  in "'" ++ escapeAtomChars modName ++ "." ++ escapeAtomChars dcons ++ "'"
+genConstructorName (UN dcons) =
+  let modName = moduleNameFromNS []
+  in "'" ++ escapeAtomChars modName ++ "." ++ escapeAtomChars dcons ++ "'"
 genConstructorName n =
   let (modName, fnName) = genModuleNameFunctionName n
   in "'" ++ escapeAtomChars modName ++ "." ++ escapeAtomChars fnName ++ "'"
