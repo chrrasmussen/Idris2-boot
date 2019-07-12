@@ -1,3 +1,5 @@
+**This branch adds Erlang as a new backend to Idris 2. See [Notes/Erlang-Codegen.md](Notes/Erlang-Codegen.md) for more information.**
+
 Idris 2
 =======
 
