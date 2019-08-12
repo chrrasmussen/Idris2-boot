@@ -391,8 +391,7 @@ rustArgList (_ :: xs) = rustArgList xs
 rustDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core String
 rustDef n (MkFun args exp) =
   let vs = initSVars args in
-  -- TODO: Fix scope/implementation
-  pure $ genDecl $ MkFun (schName !(getFullName n)) (rustArgList vs) (Crash "Not implemented")
+  pure $ genDecl $ MkFun (schName !(getFullName n)) (rustArgList vs) !(rustExp 0 vs exp)
 rustDef n (MkError exp) =
   pure "" -- TODO: Do I need this?
 rustDef n (MkCon t a) =
