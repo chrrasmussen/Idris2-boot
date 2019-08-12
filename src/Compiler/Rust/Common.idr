@@ -19,18 +19,18 @@ schString s = concatMap okchar (unpack s)
     okchar : Char -> String
     okchar c = if isAlphaNum c || c =='_'
                   then cast c
-                  else "C-" ++ show (cast {to=Int} c)
+                  else "C_" ++ show (cast {to=Int} c)
 
 schName : Name -> String
-schName (NS ns n) = showSep "-" ns ++ "-" ++ schName n
+schName (NS ns n) = showSep "_" ns ++ "_" ++ schName n
 schName (UN n) = schString n
-schName (MN n i) = schString n ++ "-" ++ show i
-schName (PV n d) = "pat--" ++ schName n
+schName (MN n i) = schString n ++ "_" ++ show i
+schName (PV n d) = "pat__" ++ schName n
 schName (DN _ n) = schName n
-schName (Nested i n) = "n--" ++ show i ++ "-" ++ schName n
-schName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
-schName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
-schName (Resolved i) = "fn--" ++ show i
+schName (Nested i n) = "n__" ++ show i ++ "_" ++ schName n
+schName (CaseBlock x y) = "case__" ++ show x ++ "_" ++ show y
+schName (WithBlock x y) = "with__" ++ show x ++ "_" ++ show y
+schName (Resolved i) = "fn__" ++ show i
 
 -- local variable names as scheme names - we need to invent new names for the locals
 -- because there might be shadows in the original expression which can't be resolved
