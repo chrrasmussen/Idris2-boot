@@ -36,7 +36,7 @@ compileToRust c tm outfile
          mainExpr <- rustExp 0 [] !(compileExp tags tm)
          let main = genExprNoArgs mainExpr
          support <- readDataFile "rust/support.rs"
-         let scm = header ++ support ++ code ++ "fn main() { " ++ main ++ " }\n"
+         let scm = header ++ support ++ code ++ "fn main() { " ++ main ++ "; () }\n"
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755
