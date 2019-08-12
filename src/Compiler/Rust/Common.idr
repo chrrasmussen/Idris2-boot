@@ -11,6 +11,8 @@ import Core.TT
 import Data.List
 import Data.Vect
 
+import Compiler.Rust.RustExpr
+
 %default covering
 
 schString : String -> String

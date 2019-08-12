@@ -119,6 +119,7 @@ modules =
     Yaffle.Main,
     Yaffle.REPL
 
+pkgs = contrib
 sourcedir = src
 executable = idris2
 -- opts = "--cg-opt -O2 --partial-eval"
