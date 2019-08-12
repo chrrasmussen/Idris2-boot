@@ -41,19 +41,19 @@ schName (Resolved i) = "fn__" ++ show i
 public export
 data SVars : List Name -> Type where
      Nil : SVars []
-     (::) : (svar : String) -> SVars ns -> SVars (n :: ns)
+     (::) : (svar : Name) -> SVars ns -> SVars (n :: ns)
 
 extendSVars : (xs : List Name) -> SVars ns -> SVars (xs ++ ns)
 extendSVars {ns} xs vs = extSVars' (cast (length ns)) xs vs
   where 
     extSVars' : Int -> (xs : List Name) -> SVars ns -> SVars (xs ++ ns)
     extSVars' i [] vs = vs
-    extSVars' i (x :: xs) vs = schName (MN "v" i) :: extSVars' (i + 1) xs vs
+    extSVars' i (x :: xs) vs = MN "v" i :: extSVars' (i + 1) xs vs
 
 initSVars : (xs : List Name) -> SVars xs
 initSVars xs = rewrite sym (appendNilRightNeutral xs) in extendSVars xs []
 
-lookupSVar : {idx : Nat} -> .(IsVar n idx xs) -> SVars xs -> String
+lookupSVar : {idx : Nat} -> .(IsVar n idx xs) -> SVars xs -> Name
 lookupSVar First (n :: ns) = n
 lookupSVar (Later p) (n :: ns) = lookupSVar p ns
 
@@ -228,7 +228,7 @@ mutual
       bindArgs : Int -> (ns : List Name) -> SVars (ns ++ vars) -> String -> String
       bindArgs i [] vs body = body
       bindArgs i (n :: ns) (v :: vs) body
-          = "(let ((" ++ v ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
+          = "(let ((" ++ schName v ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
                   ++ bindArgs (i + 1) ns vs body ++ ")"
 
   schConstAlt : Int -> SVars vars -> String -> CConstAlt vars -> Core String
@@ -242,17 +242,17 @@ mutual
 
   export
   schExp : Int -> SVars vars -> CExp vars -> Core String
-  schExp i vs (CLocal fc el) = pure $ lookupSVar el vs
+  schExp i vs (CLocal fc el) = pure $ schName (lookupSVar el vs)
   schExp i vs (CRef fc n) = pure $ schName n
   schExp i vs (CLam fc x sc)
       = do let vs' = extendSVars [x] vs
            sc' <- schExp i vs' sc
-           pure $ "(lambda (" ++ lookupSVar First vs' ++ ") " ++ sc' ++ ")"
+           pure $ "(lambda (" ++ schName (lookupSVar First vs') ++ ") " ++ sc' ++ ")"
   schExp i vs (CLet fc x val sc)
       = do let vs' = extendSVars [x] vs
            val' <- schExp i vs val
            sc' <- schExp i vs' sc
-           pure $ "(let ((" ++ lookupSVar First vs' ++ " " ++ val' ++ ")) " ++ sc' ++ ")"
+           pure $ "(let ((" ++ schName (lookupSVar First vs') ++ " " ++ val' ++ ")) " ++ sc' ++ ")"
   schExp i vs (CApp fc x [])
       = pure $ "(" ++ !(schExp i vs x) ++ ")"
   schExp i vs (CApp fc x args)
@@ -341,8 +341,8 @@ mutual
 
 schArglist : SVars ns -> String
 schArglist [] = ""
-schArglist [x] = x
-schArglist (x :: xs) = x ++ " " ++ schArglist xs
+schArglist [x] = schName x
+schArglist (x :: xs) = schName x ++ " " ++ schArglist xs
 
 schDef : {auto c : Ref Ctxt Defs} ->
           Name -> CDef -> Core String
