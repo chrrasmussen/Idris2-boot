@@ -339,20 +339,20 @@ mutual
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))
 
-schArglist : SVars ns -> String
-schArglist [] = ""
-schArglist [x] = schName x
-schArglist (x :: xs) = schName x ++ " " ++ schArglist xs
+rustArgList : SVars ns -> List RustName
+rustArgList [] = []
+rustArgList ((MN n i) :: xs) = MN (toNat i) :: rustArgList xs
+rustArgList (_ :: xs) = rustArgList xs
 
-schDef : {auto c : Ref Ctxt Defs} ->
-          Name -> CDef -> Core String
-schDef n (MkFun args exp)
-    = let vs = initSVars args in
-          pure $ "(define " ++ schName !(getFullName n) ++ " (lambda (" ++ schArglist vs ++ ") "
-                    ++ !(schExp 0 vs exp) ++ "))\n"
-schDef n (MkError exp)
-    = pure $ "(define (" ++ schName !(getFullName n) ++ " . any-args) " ++ !(schExp 0 [] exp) ++ ")\n"
-schDef n (MkCon t a) = pure "" -- Nothing to compile here
+rustDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core String
+rustDef n (MkFun args exp) =
+  let vs = initSVars args in
+  -- TODO: Fix scope/implementation
+  pure $ genDecl $ MkFun (schName !(getFullName n)) (rustArgList vs) (Crash "Not implemented")
+rustDef n (MkError exp) =
+  pure "" -- TODO: Do I need this?
+rustDef n (MkCon t a) =
+  pure "" -- Nothing to compile here
   
 -- Convert the name to scheme code
 -- (There may be no code generated, for example if it's a constructor)
@@ -364,4 +364,4 @@ getRust defs n
            Just d => case compexpr d of
                           Nothing =>
                              throw (InternalError ("No compiled definition for " ++ show n))
-                          Just d => schDef n d
+                          Just d => rustDef n d
