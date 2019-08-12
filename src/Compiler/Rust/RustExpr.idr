@@ -93,6 +93,12 @@ genExpr (App expr args) = do
 genExpr (Crash msg) = pure $ "panic!(\"" ++ msg ++ "\")"
 
 export
+genExprNoArgs : RustExpr -> String
+genExprNoArgs expr =
+  let (code, _) = State.runState (genExpr expr) empty
+  in code
+
+export
 genDecl : RustDecl -> String
 genDecl (MkFun name args scope) =
     let (code, usedIds) = State.runState (genExpr scope) empty

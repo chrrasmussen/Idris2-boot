@@ -241,6 +241,11 @@ mutual
   schArgs i vs (arg :: args) = pure $ !(schExp i vs arg) :: !(schArgs i vs args)
 
   export
+  rustExp : Int -> SVars vars -> CExp vars -> Core RustExpr
+  rustExp i vs (CRef fc n) = pure $ Ref (UN (schName n))
+  rustExp i vs _ = pure $ Crash "Missing expression in rustExp"
+
+  export
   schExp : Int -> SVars vars -> CExp vars -> Core String
   schExp i vs (CLocal fc el) = pure $ schName (lookupSVar el vs)
   schExp i vs (CRef fc n) = pure $ schName n

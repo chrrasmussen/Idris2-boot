@@ -4,6 +4,7 @@ import Compiler.Common
 import Compiler.CompileExpr
 import Compiler.Inline
 import Compiler.Rust.Common
+import Compiler.Rust.RustExpr
 
 import Core.Context
 import Core.Directory
@@ -32,10 +33,10 @@ compileToRust c tm outfile
          defs <- get Ctxt
          compdefs <- traverse (getRust defs) ns
          let code = concat compdefs
-         main <- schExp 0 [] !(compileExp tags tm)
+         mainExpr <- rustExp 0 [] !(compileExp tags tm)
+         let main = genExprNoArgs mainExpr
          support <- readDataFile "rust/support.rs"
-         --let scm = header ++ support ++ code ++ "fn main() { " ++ main ++ " }\n"
-         let scm = header ++ support ++ "fn main() { println!(\"Hello, world!\") }\n"
+         let scm = header ++ support ++ code ++ "fn main() { " ++ main ++ " }\n"
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755
