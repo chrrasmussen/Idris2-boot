@@ -24,7 +24,7 @@ schString s = concatMap okchar (unpack s)
                   else "C_" ++ show (cast {to=Int} c)
 
 schName : Name -> String
-schName (NS ns n) = showSep "_" ns ++ "_" ++ schName n
+schName (NS ns n) = "ns_" ++ showSep "_" ns ++ "_" ++ schName n
 schName (UN n) = schString n
 schName (MN n i) = schString n ++ "_" ++ show i
 schName (PV n d) = "pat__" ++ schName n
