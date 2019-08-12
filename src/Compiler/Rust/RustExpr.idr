@@ -84,7 +84,7 @@ genExpr (Lam n scope) = do
   innerScope <- genExpr scope
   usedIds <- get
   let newScope = genArgsClones [n] usedIds innerScope
-  pure $ "(move |" ++ genRustName n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })"
+  pure $ "Arc::new(Lambda(move |" ++ genRustName n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " }))"
 genExpr (App expr args) = do
   outArgs <- traverse genExpr args
   outExpr <- genExpr expr
