@@ -3,7 +3,7 @@ module Compiler.Rust.Rust
 import Compiler.Common
 import Compiler.CompileExpr
 import Compiler.Inline
-import Compiler.Scheme.Common
+import Compiler.Rust.Common
 
 import Core.Context
 import Core.Directory
@@ -17,66 +17,52 @@ import System.Info
 
 %default covering
 
-firstExists : List String -> IO (Maybe String)
-firstExists [] = pure Nothing
-firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
+findRustc : IO String
+findRustc = pure "rustc"
 
-findRacket : IO String
-findRacket = pure "/usr/bin/env racket"
+header : String
+header = ""
 
-findRacoExe : IO String
-findRacoExe = pure "raco exe"
+quoted : String -> String
+quoted path = "'" ++ path ++ "'"
 
-schHeader : String
-schHeader
-  = "#lang racket/base\n" ++
-    "(require racket/promise)\n" ++ -- for force/delay
-    "(let ()\n"
-
-schFooter : String
-schFooter = ")"
-
-mutual
-  racketPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
-  racketPrim i vs CCall [ret, fn, args, world]
-      = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
-  racketPrim i vs prim args 
-      = schExtCommon racketPrim i vs prim args
-
-compileToRKT : Ref Ctxt Defs ->
-               ClosedTerm -> (outfile : String) -> Core ()
-compileToRKT c tm outfile
+compileToRust : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
+compileToRust c tm outfile
     = do (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
-         compdefs <- traverse (getScheme racketPrim defs) ns
+         compdefs <- traverse (getRust defs) ns
          let code = concat compdefs
-         main <- schExp racketPrim 0 [] !(compileExp tags tm)
-         support <- readDataFile "racket/support.rkt"
-         let scm = schHeader ++ support ++ code ++ "(void " ++ main ++ ")\n" ++ schFooter
+         main <- schExp 0 [] !(compileExp tags tm)
+         support <- readDataFile "rust/support.rs"
+         --let scm = header ++ support ++ code ++ "fn main() { " ++ main ++ " }\n"
+         let scm = header ++ support ++ "fn main() { println!(\"Hello, world!\") }\n"
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755
          pure ()
 
-compileExpr : Ref Ctxt Defs ->
-              ClosedTerm -> (outfile : String) -> Core (Maybe String)
+compileExpr : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tm outfile
-    = do tmp <- coreLift $ tmpName
-         let outn = tmp ++ ".rkt"
-         compileToRKT c tm outn
-         raco <- coreLift findRacoExe
-         ok <- coreLift $ system (raco ++ " -o " ++ outfile ++ " " ++ outn)
+    = do tmpDir <- coreLift $ tmpName
+         let outSrc = tmpDir ++ "/main.rs"
+         coreLift $ system ("mkdir -p " ++ quoted tmpDir)
+         compileToRust c tm outSrc
+         rustc <- coreLift findRustc
+         ok <- coreLift $ system (rustc ++ " -o " ++ outfile ++ " " ++ outSrc)
          if ok == 0
             then pure (Just outfile)
             else pure Nothing
 
 executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
 executeExpr c tm
-    = do tmp <- coreLift $ tmpName
-         let outn = tmp ++ ".rkt"
-         compileToRKT c tm outn
-         racket <- coreLift findRacket
-         coreLift $ system (racket ++ " " ++ outn)
+    = do tmpDir <- coreLift $ tmpName
+         let outSrc = tmpDir ++ "/main.rs"
+         let outExec = tmpDir ++ "/main"
+         coreLift $ system ("mkdir -p " ++ quoted tmpDir)
+         compileToRust c tm outSrc
+         rustc <- coreLift findRustc
+         coreLift $ system (rustc ++ " -o " ++ outExec ++ " " ++ outSrc)
+         coreLift $ system outExec
          pure ()
 
 export
