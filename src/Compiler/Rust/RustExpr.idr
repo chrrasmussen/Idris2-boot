@@ -29,7 +29,6 @@ data RustExpr : Type where
 public export
 data RustDecl : Type where
   MkFun : String -> List RustName -> RustExpr -> RustDecl
-  MkEmpty : RustDecl
 
 
 
@@ -98,8 +97,7 @@ genDecl : RustDecl -> String
 genDecl (MkFun name args scope) =
     let (code, usedIds) = State.runState (genExpr scope) empty
     in let newScope = genArgsClones args usedIds code
-    in "fn " ++ name ++ "(" ++ showSep ", " (map showArg args) ++ ") -> Arc<IdrisValue> { " ++ newScope ++ " }"
+    in "fn " ++ name ++ "(" ++ showSep ", " (map showArg args) ++ ") -> Arc<IdrisValue> { " ++ newScope ++ " }\n"
   where
     showArg : RustName -> String
     showArg arg = genRustName arg ++ ": Arc<IdrisValue>"
-genDecl MkEmpty = ""
