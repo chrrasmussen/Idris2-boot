@@ -16,6 +16,7 @@ public export
 data IdrisValue : Type where
   LInt : Int -> IdrisValue
   LDouble : Double -> IdrisValue
+  LErased : IdrisValue
 
 public export
 data RustExpr : Type where
@@ -44,6 +45,7 @@ genRustName (MN x) = "v_" ++ show x
 genIdrisValue : IdrisValue -> String
 genIdrisValue (LInt x) = "Arc::new(Int(" ++ show x ++ "))"
 genIdrisValue (LDouble x) = "Arc::new(Double(" ++ show x ++ "))"
+genIdrisValue (LErased) = "Arc::new(Erased)"
 
 genLet : String -> String -> String -> String
 genLet n val scope =

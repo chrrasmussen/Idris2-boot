@@ -200,6 +200,23 @@ export
 mkWorld : String -> String
 mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
+rustConstant : Constant -> IdrisValue
+rustConstant (I x) = LInt x
+--rustConstant (BI x) = show x
+--rustConstant (Str x) = show x
+--rustConstant (Ch x) = "#\\" ++ cast x
+rustConstant (Db x) = LDouble x
+--rustConstant WorldVal = "#f"
+--rustConstant IntType = "#t"
+--rustConstant IntegerType = "#t"
+--rustConstant StringType = "#t"
+--rustConstant CharType = "#t"
+--rustConstant DoubleType = "#t"
+--rustConstant WorldType = "#t"
+-- TODO: Catch all:
+rustConstant _ = LErased
+
+
 schConstant : Constant -> String
 schConstant (I x) = show x
 schConstant (BI x) = show x
@@ -242,7 +259,29 @@ mutual
 
   export
   rustExp : Int -> SVars vars -> CExp vars -> Core RustExpr
+  rustExp i vs (CLocal fc el) = do
+    let MN n index = lookupSVar el vs
+      | pure (Crash "Unexpected variable name")
+    pure $ Ref (MN (toNat index))
   rustExp i vs (CRef fc n) = pure $ Ref (UN (schName n))
+  rustExp i vs (CLam fc x sc) = do
+    let vs' = extendSVars [x] vs
+    sc' <- rustExp i vs' sc
+    let MN n index = lookupSVar First vs'
+      | pure (Crash "Unexpected variable name")
+    pure $ Lam (MN (toNat index)) sc'
+  rustExp i vs (CLet fc x val sc) = do
+    let vs' = extendSVars [x] vs
+    val' <- rustExp i vs val
+    sc' <- rustExp i vs' sc
+    let MN n index = lookupSVar First vs'
+      | pure (Crash "Unexpected variable name")
+    pure $ Let (MN (toNat index)) val' sc'
+  rustExp i vs (CApp fc x args) =
+    pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
+  rustExp i vs (CPrimVal fc c) = pure $ Value (rustConstant c)
+  rustExp i vs (CErased fc) = pure $ Value LErased
+  rustExp i vs (CCrash fc msg) = pure $ Crash msg
   rustExp i vs _ = pure $ Crash "Missing expression in rustExp"
 
   export
