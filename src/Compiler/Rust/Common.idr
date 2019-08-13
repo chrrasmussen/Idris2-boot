@@ -262,10 +262,16 @@ mutual
     pure $ Let (MN (toNat index)) val' sc'
   rustExp i vs (CApp fc x args) =
     pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
+  rustExp i vs (CCon fc x tag args) = pure $ Crash "CCon not implemented"
+  rustExp i vs (COp fc op args) = pure $ Crash "COp not implemented"
+  rustExp i vs (CExtPrim fc p args) = pure $ Crash "CExtPrim not implemented"
+  rustExp i vs (CForce fc t) = pure $ Crash "CForce not implemented"
+  rustExp i vs (CDelay fc t) = pure $ Crash "CDelay not implemented"
+  rustExp i vs (CConCase fc sc alts def) = pure $ Crash "CConCase not implemented"
+  rustExp i vs (CConstCase fc sc alts def) = pure $ Crash "CConstCase not implemented"
   rustExp i vs (CPrimVal fc c) = pure $ PrimVal (rustConstant c)
   rustExp i vs (CErased fc) = pure $ Erased
   rustExp i vs (CCrash fc msg) = pure $ Crash msg
-  rustExp i vs _ = pure $ Crash "Missing expression in rustExp"
 
   export
   schExp : Int -> SVars vars -> CExp vars -> Core String
