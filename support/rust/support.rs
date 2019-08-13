@@ -10,14 +10,13 @@ use std::io::{self, BufRead};
 
 use IdrisValue::*;
 
-#[derive(Debug)]
 enum IdrisValue {
     Int(i64),
     // Integer(BigInt),
     Char(char),
     Double(f64),
     Str(String),
-    Lambda(fn(Arc<IdrisValue>) -> Arc<IdrisValue>),
+    Lambda(Box<Fn(Arc<IdrisValue>) -> Arc<IdrisValue>>),
     Erased,
     DataCon { tag: u32, args: Vec<Arc<IdrisValue>> },
 }
@@ -43,7 +42,7 @@ impl IdrisValue {
         if let Str(x) = self { x } else { panic!("Expected IdrisValue::Str") }
     }
 
-    fn unwrap_lambda(&self) -> &fn(Arc<IdrisValue>) -> Arc<IdrisValue> {
+    fn unwrap_lambda(&self) -> &Box<Fn(Arc<IdrisValue>) -> Arc<IdrisValue>> {
         if let Lambda(x) = self { x } else { panic!("Expected IdrisValue::Lambda") }
     }
 
