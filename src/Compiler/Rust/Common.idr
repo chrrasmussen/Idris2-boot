@@ -274,7 +274,8 @@ mutual
     pure $ Let (MN (toNat index)) val' sc'
   rustExp i vs (CApp fc x args) =
     pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
-  rustExp i vs (CCon fc x tag args) = pure $ Crash "CCon not implemented"
+  rustExp i vs (CCon fc x tag args) =
+    pure $ Con tag!(traverse (rustExp i vs) args)
   rustExp i vs (COp fc op args) = pure $ rustOp op !(rustArgs i vs args)
   rustExp i vs (CExtPrim fc p args) = rustExtPrim i vs (toPrim p) args
   rustExp i vs (CForce fc t) = pure $ Crash "CForce not implemented"

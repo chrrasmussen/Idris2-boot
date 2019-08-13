@@ -30,6 +30,7 @@ data RustExpr : Type where
   Let : RustName -> RustExpr -> RustExpr -> RustExpr
   Lam : RustName -> RustExpr -> RustExpr
   App : RustExpr -> List RustExpr -> RustExpr
+  Con : Int -> List RustExpr -> RustExpr
   BinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
   Erased : RustExpr
   Crash : String -> RustExpr
@@ -118,6 +119,9 @@ genExpr (App expr args) = do
     Ref (UN fnRustName) => fnRustName
     _ => "(" ++ outExpr ++ ".unwrap_lambda())"
   pure $ calledExpr ++ "(" ++ showSep ", " outArgs ++ ")"
+genExpr (Con tag args) = do
+  outArgs <- traverse genExpr args
+  pure $ "Arc::new(DataCon { tag: " ++ show tag ++ ", args: vec![" ++ showSep ", " outArgs ++ "]})"
 genExpr (BinOp ty fnName val1 val2) = do
   let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
   pure $ "Arc::new(" ++ dataConstructor ty ++ "(" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ "))"
