@@ -218,7 +218,29 @@ schCaseDef : Maybe String -> String
 schCaseDef Nothing = ""
 schCaseDef (Just tm) = "(else " ++ tm ++ ")"
 
+constantToRustType : Constant -> Maybe RustType
+constantToRustType IntType = Just TInt
+constantToRustType IntegerType = Just TInt -- TODO: Should be `TInteger`
+constantToRustType StringType = Just TStr
+constantToRustType CharType = Just TChar
+constantToRustType DoubleType = Just TDouble
+constantToRustType _ = Nothing
+
+binOp : Constant -> String -> RustExpr -> RustExpr -> RustExpr
+binOp constant fnName x y =
+  let Just ty = constantToRustType constant
+    | Crash "Unknown type for binary operator"
+  in BinOp ty fnName x y
+
 mutual
+  rustOp : PrimFn arity -> Vect arity RustExpr -> RustExpr
+  rustOp (Add ty) [x, y] = binOp ty "+" x y
+  rustOp (Sub ty) [x, y] = binOp ty "-" x y
+  rustOp (Mul ty) [x, y] = binOp ty "*" x y
+  rustOp (Div ty) [x, y] = binOp ty "/" x y
+  -- TODO: Add missing operators
+  rustOp _ _ = Crash "Unknown operator"
+
   schConAlt : Int -> SVars vars -> String -> CConAlt vars -> Core String
   schConAlt {vars} i vs target (MkConAlt n tag args sc)
       = let vs' = extendSVars args vs in
@@ -236,9 +258,9 @@ mutual
       = pure $ "((equal? " ++ target ++ " " ++ "FIXME: schConstant c" ++ ") " ++ !(schExp i vs exp) ++ ")"
 
   -- oops, no traverse for Vect in Core
-  schArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n String)
-  schArgs i vs [] = pure []
-  schArgs i vs (arg :: args) = pure $ !(schExp i vs arg) :: !(schArgs i vs args)
+  rustArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n RustExpr)
+  rustArgs i vs [] = pure []
+  rustArgs i vs (arg :: args) = pure $ !(rustExp i vs arg) :: !(rustArgs i vs args)
 
   export
   rustExp : Int -> SVars vars -> CExp vars -> Core RustExpr
@@ -263,7 +285,7 @@ mutual
   rustExp i vs (CApp fc x args) =
     pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
   rustExp i vs (CCon fc x tag args) = pure $ Crash "CCon not implemented"
-  rustExp i vs (COp fc op args) = pure $ Crash "COp not implemented"
+  rustExp i vs (COp fc op args) = pure $ rustOp op !(rustArgs i vs args)
   rustExp i vs (CExtPrim fc p args) = rustExtPrim i vs (toPrim p) args
   rustExp i vs (CForce fc t) = pure $ Crash "CForce not implemented"
   rustExp i vs (CDelay fc t) = pure $ Crash "CDelay not implemented"
@@ -293,7 +315,7 @@ mutual
   schExp i vs (CCon fc x tag args)
       = pure $ schConstructor tag !(traverse (schExp i vs) args)
   schExp i vs (COp fc op args)
-      = pure $ schOp op !(schArgs i vs args)
+      = pure $ "REPLACED"
   schExp i vs (CExtPrim fc p args)
       = schExtCommon i vs (toPrim p) args
   schExp i vs (CForce fc t) = pure $ "(force " ++ !(schExp i vs t) ++ ")"

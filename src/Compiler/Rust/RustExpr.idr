@@ -21,12 +21,16 @@ data RustConstant : Type where
   CStr : String -> RustConstant
 
 public export
+data RustType = TInt | TInteger | TDouble | TChar | TStr
+
+public export
 data RustExpr : Type where
   PrimVal : RustConstant -> RustExpr
   Ref : RustName -> RustExpr
   Let : RustName -> RustExpr -> RustExpr -> RustExpr
   Lam : RustName -> RustExpr -> RustExpr
   App : RustExpr -> List RustExpr -> RustExpr
+  BinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
   Erased : RustExpr
   Crash : String -> RustExpr
 
@@ -40,6 +44,20 @@ showSep : String -> List String -> String
 showSep sep [] = ""
 showSep sep [x] = x
 showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
+
+unwrapName : RustType -> String
+unwrapName TInt = "int"
+unwrapName TInteger = "integer"
+unwrapName TDouble = "double"
+unwrapName TChar = "char"
+unwrapName TStr = "str"
+
+dataConstructor : RustType -> String
+dataConstructor TInt = "Int"
+dataConstructor TInteger = "Integer"
+dataConstructor TDouble = "Double"
+dataConstructor TChar = "Char"
+dataConstructor TStr = "Str"
 
 genRustName : RustName -> String
 genRustName (UN x) = x
@@ -100,6 +118,9 @@ genExpr (App expr args) = do
     Ref (UN fnRustName) => fnRustName
     _ => "(" ++ outExpr ++ ".unwrap_lambda())"
   pure $ calledExpr ++ "(" ++ showSep ", " outArgs ++ ")"
+genExpr (BinOp ty fnName val1 val2) = do
+  let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
+  pure $ "Arc::new(" ++ dataConstructor ty ++ "(" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ "))"
 genExpr Erased = pure $ "Arc::new(Erased)"
 genExpr (Crash msg) = pure $ "panic!(\"" ++ msg ++ "\")"
 
