@@ -13,18 +13,18 @@ data RustName
   | MN Nat
 
 public export
-data IdrisValue : Type where
-  LInt : Int -> IdrisValue
-  LDouble : Double -> IdrisValue
-  LErased : IdrisValue
+data RustConstant : Type where
+  CInt : Int -> RustConstant
+  CDouble : Double -> RustConstant
 
 public export
 data RustExpr : Type where
-  Value : IdrisValue -> RustExpr
+  PrimVal : RustConstant -> RustExpr
   Ref : RustName -> RustExpr
   Let : RustName -> RustExpr -> RustExpr -> RustExpr
   Lam : RustName -> RustExpr -> RustExpr
   App : RustExpr -> List RustExpr -> RustExpr
+  Erased : RustExpr
   Crash : String -> RustExpr
 
 public export
@@ -42,10 +42,9 @@ genRustName : RustName -> String
 genRustName (UN x) = x
 genRustName (MN x) = "v_" ++ show x
 
-genIdrisValue : IdrisValue -> String
-genIdrisValue (LInt x) = "Arc::new(Int(" ++ show x ++ "))"
-genIdrisValue (LDouble x) = "Arc::new(Double(" ++ show x ++ "))"
-genIdrisValue (LErased) = "Arc::new(Erased)"
+genConstant : RustConstant -> String
+genConstant (CInt x) = "Arc::new(Int(" ++ show x ++ "))"
+genConstant (CDouble x) = "Arc::new(Double(" ++ show x ++ "))"
 
 genLet : String -> String -> String -> String
 genLet n val scope =
@@ -65,7 +64,7 @@ genArgsClones (varRustName@(MN x) :: xs) usedIds scope =
 genArgsClones (_ :: xs) usedIds scope = genArgsClones xs usedIds scope
 
 genExpr : RustExpr -> State (SortedMap Nat Nat) String
-genExpr (Value val) = pure $ genIdrisValue val
+genExpr (PrimVal val) = pure $ genConstant val
 genExpr (Ref n@(UN x)) = pure $ genRustName n
 genExpr (Ref n@(MN x)) = do
   usedIds <- get
@@ -92,6 +91,7 @@ genExpr (App expr args) = do
     Ref (UN fnRustName) => fnRustName
     _ => "(" ++ outExpr ++ ".unwrap_lambda())"
   pure $ calledExpr ++ "(" ++ showSep ", " outArgs ++ ")"
+genExpr Erased = pure $ "Arc::new(Erased)"
 genExpr (Crash msg) = pure $ "panic!(\"" ++ msg ++ "\")"
 
 export

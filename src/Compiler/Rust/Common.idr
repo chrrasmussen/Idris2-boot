@@ -200,12 +200,12 @@ export
 mkWorld : String -> String
 mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
-rustConstant : Constant -> IdrisValue
-rustConstant (I x) = LInt x
+rustConstant : Constant -> RustConstant
+rustConstant (I x) = CInt x
 --rustConstant (BI x) = show x
 --rustConstant (Str x) = show x
 --rustConstant (Ch x) = "#\\" ++ cast x
-rustConstant (Db x) = LDouble x
+rustConstant (Db x) = CDouble x
 --rustConstant WorldVal = "#f"
 --rustConstant IntType = "#t"
 --rustConstant IntegerType = "#t"
@@ -214,7 +214,7 @@ rustConstant (Db x) = LDouble x
 --rustConstant DoubleType = "#t"
 --rustConstant WorldType = "#t"
 -- TODO: Catch all:
-rustConstant _ = LErased
+rustConstant _ = CInt 0
 
 
 schConstant : Constant -> String
@@ -279,8 +279,8 @@ mutual
     pure $ Let (MN (toNat index)) val' sc'
   rustExp i vs (CApp fc x args) =
     pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
-  rustExp i vs (CPrimVal fc c) = pure $ Value (rustConstant c)
-  rustExp i vs (CErased fc) = pure $ Value LErased
+  rustExp i vs (CPrimVal fc c) = pure $ PrimVal (rustConstant c)
+  rustExp i vs (CErased fc) = pure $ Erased
   rustExp i vs (CCrash fc msg) = pure $ Crash msg
   rustExp i vs _ = pure $ Crash "Missing expression in rustExp"
 
