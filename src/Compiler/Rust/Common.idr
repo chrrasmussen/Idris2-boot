@@ -264,7 +264,7 @@ mutual
     pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
   rustExp i vs (CCon fc x tag args) = pure $ Crash "CCon not implemented"
   rustExp i vs (COp fc op args) = pure $ Crash "COp not implemented"
-  rustExp i vs (CExtPrim fc p args) = pure $ Crash "CExtPrim not implemented"
+  rustExp i vs (CExtPrim fc p args) = rustExtPrim i vs (toPrim p) args
   rustExp i vs (CForce fc t) = pure $ Crash "CForce not implemented"
   rustExp i vs (CDelay fc t) = pure $ Crash "CDelay not implemented"
   rustExp i vs (CConCase fc sc alts def) = pure $ Crash "CConCase not implemented"
@@ -323,6 +323,11 @@ mutual
 
   fileOp : String -> String
   fileOp op = "(blodwen-file-op (lambda () " ++ op ++ "))"
+
+  rustExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core RustExpr
+  rustExtPrim i vs PutStr [arg, world] = pure $ App (Ref (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
+  rustExtPrim i vs GetStr [world] = pure $ App (Ref (UN "idris_rts_get_str")) []
+  rustExtPrim i vs prim args = throw (InternalError ("Badly formed external primitive " ++ show prim ++ " " ++ show args))
 
   -- External primitives which are common to the scheme codegens (they can be
   -- overridden)

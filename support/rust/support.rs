@@ -5,6 +5,7 @@
 // extern crate num_bigint;
 
 use std::sync::Arc;
+use std::io::{self, BufRead};
 // use num_bigint::BigInt;
 
 use IdrisValue::*;
@@ -49,4 +50,15 @@ impl IdrisValue {
     fn unwrap_data_con(&self) -> (&u32, &Vec<Arc<IdrisValue>>) {
         if let DataCon { tag, args } = self { (tag, args) } else { panic!("Expected IdrisValue::DataCon") }
     }
+}
+
+fn idris_rts_put_str(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    print!("{}", x.unwrap_str());
+    Arc::new(Erased)
+}
+
+fn idris_rts_get_str() -> Arc<IdrisValue> {
+    let stdin = io::stdin();
+    let line1 = stdin.lock().lines().next().unwrap().unwrap();
+    Arc::new(Str(line1))
 }
