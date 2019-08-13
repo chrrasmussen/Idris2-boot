@@ -15,7 +15,10 @@ data RustName
 public export
 data RustConstant : Type where
   CInt : Int -> RustConstant
+  CInteger : Integer -> RustConstant
   CDouble : Double -> RustConstant
+  CChar : Char -> RustConstant
+  CStr : String -> RustConstant
 
 public export
 data RustExpr : Type where
@@ -44,7 +47,13 @@ genRustName (MN x) = "v_" ++ show x
 
 genConstant : RustConstant -> String
 genConstant (CInt x) = "Arc::new(Int(" ++ show x ++ "))"
+genConstant (CInteger x) = "Arc::new(Int(" ++ show x ++ "))" -- TODO: Should be `Integer`
 genConstant (CDouble x) = "Arc::new(Double(" ++ show x ++ "))"
+genConstant (CChar x) = "Arc::new(Char('\\u{" ++ toHex x ++ "}'))"
+  where
+    toHex : Char -> String
+    toHex c = substr 2 6 (b32ToHexString (fromInteger (cast (ord c))))
+genConstant (CStr x) = "Arc::new(Str(\"" ++ x ++ "\".to_string()))" -- TODO: Does not handle Unicode characters
 
 genLet : String -> String -> String -> String
 genLet n val scope =

@@ -202,34 +202,17 @@ mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
 rustConstant : Constant -> RustConstant
 rustConstant (I x) = CInt x
---rustConstant (BI x) = show x
---rustConstant (Str x) = show x
---rustConstant (Ch x) = "#\\" ++ cast x
+rustConstant (BI x) = CInteger x
+rustConstant (Str x) = CStr x
+rustConstant (Ch x) = CChar x
 rustConstant (Db x) = CDouble x
---rustConstant WorldVal = "#f"
---rustConstant IntType = "#t"
---rustConstant IntegerType = "#t"
---rustConstant StringType = "#t"
---rustConstant CharType = "#t"
---rustConstant DoubleType = "#t"
---rustConstant WorldType = "#t"
--- TODO: Catch all:
-rustConstant _ = CInt 0
-
-
-schConstant : Constant -> String
-schConstant (I x) = show x
-schConstant (BI x) = show x
-schConstant (Str x) = show x
-schConstant (Ch x) = "#\\" ++ cast x
-schConstant (Db x) = show x
-schConstant WorldVal = "#f"
-schConstant IntType = "#t"
-schConstant IntegerType = "#t"
-schConstant StringType = "#t"
-schConstant CharType = "#t"
-schConstant DoubleType = "#t"
-schConstant WorldType = "#t"
+rustConstant WorldVal = CInt (-1)
+rustConstant IntType = CInt (-1)
+rustConstant IntegerType = CInt (-1)
+rustConstant StringType = CInt (-1)
+rustConstant CharType = CInt (-1)
+rustConstant DoubleType = CInt (-1)
+rustConstant WorldType = CInt (-1)
 
 schCaseDef : Maybe String -> String
 schCaseDef Nothing = ""
@@ -250,7 +233,7 @@ mutual
 
   schConstAlt : Int -> SVars vars -> String -> CConstAlt vars -> Core String
   schConstAlt i vs target (MkConstAlt c exp)
-      = pure $ "((equal? " ++ target ++ " " ++ schConstant c ++ ") " ++ !(schExp i vs exp) ++ ")"
+      = pure $ "((equal? " ++ target ++ " " ++ "FIXME: schConstant c" ++ ") " ++ !(schExp i vs exp) ++ ")"
 
   -- oops, no traverse for Vect in Core
   schArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n String)
@@ -323,7 +306,7 @@ mutual
            pure $ "(let ((" ++ n ++ " " ++ tcode ++ ")) (cond "
                     ++ showSep " " !(traverse (schConstAlt (i+1) vs n) alts)
                     ++ schCaseDef defc ++ "))"
-  schExp i vs (CPrimVal fc c) = pure $ schConstant c
+  schExp i vs (CPrimVal fc c) = pure $ "REPLACED"
   schExp i vs (CErased fc) = pure "'()"
   schExp i vs (CCrash fc msg) = pure $ "(blodwen-error-quit " ++ show msg ++ ")"
 
