@@ -91,6 +91,11 @@ genArgsClones (varRustName@(MN x) :: xs) usedIds scope =
   in genVariableClones cloneCount varRustName scope
 genArgsClones (_ :: xs) usedIds scope = genArgsClones xs usedIds scope
 
+deleteArgs : List RustName -> SortedMap Nat Nat -> SortedMap Nat Nat
+deleteArgs [] usedIds = usedIds
+deleteArgs ((MN x) :: xs) usedIds = deleteArgs xs (SortedMap.delete x usedIds)
+deleteArgs (_ :: xs) usedIds = deleteArgs xs usedIds
+
 genExpr : RustExpr -> State (SortedMap Nat Nat) String
 genExpr (PrimVal val) = pure $ genConstant val
 genExpr (Ref n@(UN x)) = pure $ genRustName n
@@ -106,11 +111,13 @@ genExpr (Let n val scope) = do
   innerScope <- genExpr scope
   usedIds <- get
   let newScope = genArgsClones [n] usedIds innerScope
+  put (deleteArgs [n] usedIds)
   pure $ genLet (genRustName n) !(genExpr val) newScope
 genExpr (Lam n scope) = do
   innerScope <- genExpr scope
   usedIds <- get
   let newScope = genArgsClones [n] usedIds innerScope
+  put (deleteArgs [n] usedIds)
   pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustName n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
 genExpr (App expr args) = do
   outArgs <- traverse genExpr args
