@@ -167,7 +167,7 @@ mutual
     let catchAllCase = ["_ => panic!(\"No matches\")"]
     pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
   genExpr Erased = pure $ "Arc::new(Erased)"
-  genExpr (Crash msg) = pure $ "panic!(\"" ++ msg ++ "\")"
+  genExpr (Crash msg) = pure $ "{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }"
 
 export
 genExprNoArgs : RustExpr -> String
