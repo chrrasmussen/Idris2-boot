@@ -141,10 +141,13 @@ mutual
     let newScope = genArgsClones [n] usedIds innerScope
     put (deleteArgs [n] usedIds)
     pure $ genLet (genRustName n) !(genExpr val) newScope
-  genExpr (Lam n scope) = do
+  genExpr (Lam n@(UN x) scope) =
+    genExpr (Crash ("Invalid name in lambda: " ++ genRustName n))
+  genExpr (Lam n@(MN x) scope) = do
     innerScope <- genExpr scope
     usedIds <- get
-    let newScope = genArgsClones [n] usedIds innerScope
+    let allVars = map MN [0..x]
+    let newScope = genArgsClones allVars usedIds innerScope
     put (deleteArgs [n] usedIds)
     pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustName n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
   genExpr (App expr args) = do
