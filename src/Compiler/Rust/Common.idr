@@ -252,6 +252,10 @@ mutual
   rustArgs i vs [] = pure []
   rustArgs i vs (arg :: args) = pure $ !(rustExp i vs arg) :: !(rustArgs i vs args)
 
+  expectMN : Name -> Core Int
+  expectMN (MN n index) = pure index
+  expectMN name = throw (InternalError ("Unexpected variable name " ++ show name))
+
   export
   rustExp : Int -> SVars vars -> CExp vars -> Core RustExpr
   rustExp i vs (CLocal fc el) = do
@@ -282,7 +286,25 @@ mutual
     rustExtPrim i vs (toPrim p) args
   rustExp i vs (CForce fc t) = pure $ Crash "CForce not implemented"
   rustExp i vs (CDelay fc t) = pure $ Crash "CDelay not implemented"
-  rustExp i vs (CConCase fc sc alts def) = pure $ Crash "CConCase not implemented"
+  rustExp i vs (CConCase fc expr alts def) = do
+    outExpr <- rustExp i vs expr
+    outAlts <- traverse (toRustConAlt i vs) alts
+    outDef <- maybe (pure Nothing) (\d => pure (Just !(rustExp i vs d))) def
+    pure $ ConCase outExpr outAlts outDef
+  where
+    getNames : List Name -> SVars vars -> List Name
+    getNames [] _ = []
+    getNames _ [] = []
+    getNames (n :: ns) (v :: vs) = v :: getNames ns vs
+    toRustConAlt : Int -> SVars vars -> CConAlt vars -> Core RustConAlt
+    toRustConAlt i vs (MkConAlt name tag args scope) = do
+      let vs' = extendSVars args vs
+      let argNames = getNames args vs'
+      indexes <- traverse expectMN argNames
+      let names = map (MN . toNat) indexes
+      outScope <- rustExp i vs' scope
+      pure $ MkConAlt tag names outScope
+
   rustExp i vs (CConstCase fc sc alts def) = pure $ Crash "CConstCase not implemented"
   rustExp i vs (CPrimVal fc c) =
     pure $ PrimVal (rustConstant c)
