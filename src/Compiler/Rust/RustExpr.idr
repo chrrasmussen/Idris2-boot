@@ -100,6 +100,26 @@ genArgsClones (varRustName@(MN x) :: xs) usedIds scope =
   in genVariableClones cloneCount varRustName scope
 genArgsClones (_ :: xs) usedIds scope = genArgsClones xs usedIds scope
 
+repeatClones : List Nat -> SortedMap Nat Nat -> List (String, String)
+repeatClones keepIds usedIds = do
+  (n, count) <- toList usedIds
+  guard (n `elem` keepIds)
+  index <- [0..count]
+  let varName = "v" ++ show n ++ (if count >= 1 then "_" ++ show (index `minus` 1) else "")
+  pure (varName, varName)
+
+freshClones : List Nat -> SortedMap Nat Nat -> List (String, String)
+freshClones keepIds usedIds = do
+  (n, count) <- toList usedIds
+  guard $ (n `elem` keepIds) && (count >= 1)
+  index <- [0..(count `minus` 1)]
+  pure ("v" ++ show n, "v" ++ show n ++ "_" ++ show index)
+
+genClones : List (String, String) -> String -> String
+genClones [] scope = scope
+genClones ((from, to) :: xs) scope =
+  genLet to (genClone from) (genClones xs scope)
+
 deleteArgs : List RustName -> SortedMap Nat Nat -> SortedMap Nat Nat
 deleteArgs [] usedIds = usedIds
 deleteArgs ((MN x) :: xs) usedIds = deleteArgs xs (SortedMap.delete x usedIds)
@@ -146,8 +166,9 @@ mutual
   genExpr (Lam n@(MN x) scope) = do
     innerScope <- genExpr scope
     usedIds <- get
-    let allVars = map MN [0..x]
-    let newScope = genArgsClones allVars usedIds innerScope
+    let previousClones = repeatClones (delete x [0..(x `minus` 1)]) usedIds
+    let newClones = freshClones [x] usedIds
+    let newScope = genClones (previousClones ++ newClones) innerScope
     put (deleteArgs [n] usedIds)
     pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustName n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
   genExpr (App expr args) = do
