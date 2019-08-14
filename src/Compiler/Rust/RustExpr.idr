@@ -117,7 +117,7 @@ mutual
   where
     genAssignment : (Nat, RustName) -> String
     genAssignment (index, name) =
-      "let " ++ genRustName name ++ " = &args[" ++ show index ++ "]"
+      "let " ++ genRustName name ++ " = " ++ genClone ("args[" ++ show index ++ "]")
 
   genConAltDef : Maybe RustExpr -> State (SortedMap Nat Nat) (List String)
   genConAltDef Nothing = pure $ []
