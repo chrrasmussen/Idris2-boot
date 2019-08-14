@@ -62,7 +62,7 @@ dataConstructor TStr = "Str"
 
 genRustName : RustName -> String
 genRustName (UN x) = x
-genRustName (MN x) = "v_" ++ show x
+genRustName (MN x) = "v" ++ show x
 
 genConstant : RustConstant -> String
 genConstant (CInt x) = "Arc::new(Int(" ++ show x ++ "))"
@@ -78,10 +78,13 @@ genLet : String -> String -> String -> String
 genLet n val scope =
   "{ let " ++ n ++  " = " ++ val ++ "; " ++ scope ++ " }"
 
+genClone : String -> String
+genClone varName = "Arc::clone(&" ++ varName ++ ")"
+
 genVariableClones : Nat -> RustName -> String -> String
 genVariableClones Z name scope = scope
 genVariableClones (S k) name scope =
-  genLet (genRustName name ++ "_" ++ show k) ("Arc::clone(&" ++ genRustName name ++ ")") (genVariableClones k name scope)
+  genLet (genRustName name ++ "_" ++ show k) (genClone (genRustName name)) (genVariableClones k name scope)
 
 genArgsClones : List RustName -> SortedMap Nat Nat -> String -> String
 genArgsClones [] usedIds scope = scope
@@ -104,9 +107,9 @@ genExpr (Ref n@(MN x)) = do
   let Just nextIndex = SortedMap.lookup x usedIds
     | Nothing => do
       put $ insert x 0 usedIds
-      pure $ genRustName n
+      pure $ genClone (genRustName n)
   put $ insert x (nextIndex + 1) usedIds
-  pure $ genRustName n ++ "_" ++ show nextIndex
+  pure $ genClone (genRustName n ++ "_" ++ show nextIndex)
 genExpr (Let n val scope) = do
   innerScope <- genExpr scope
   usedIds <- get
