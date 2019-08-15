@@ -444,10 +444,9 @@ rustDef n (MkCon t a) =
 -- (There may be no code generated, for example if it's a constructor)
 export
 getRust : {auto c : Ref Ctxt Defs} -> Defs -> Name -> Core String
-getRust defs n
-    = case !(lookupCtxtExact n (gamma defs)) of
-           Nothing => throw (InternalError ("Compiling undefined name " ++ show n))
-           Just d => case compexpr d of
-                          Nothing =>
-                             throw (InternalError ("No compiled definition for " ++ show n))
-                          Just d => rustDef n d
+getRust defs n = do
+  Just d <- lookupCtxtExact n (gamma defs)
+    | throw (InternalError ("Compiling undefined name " ++ show n))
+  let Just d = compexpr d
+    | throw (InternalError ("No compiled definition for " ++ show n))
+  rustDef n d
