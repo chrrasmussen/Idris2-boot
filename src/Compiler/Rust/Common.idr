@@ -259,22 +259,19 @@ mutual
   export
   rustExp : Int -> SVars vars -> CExp vars -> Core RustExpr
   rustExp i vs (CLocal fc el) = do
-    let MN n index = lookupSVar el vs
-      | pure (Crash "Unexpected variable name")
+    index <- expectMN (lookupSVar el vs)
     pure $ Ref (MN (toNat index))
   rustExp i vs (CRef fc n) = pure $ Ref (UN (schName n))
   rustExp i vs (CLam fc x sc) = do
     let vs' = extendSVars [x] vs
     sc' <- rustExp i vs' sc
-    let MN n index = lookupSVar First vs'
-      | pure (Crash "Unexpected variable name")
+    index <- expectMN (lookupSVar First vs')
     pure $ Lam (MN (toNat index)) sc'
   rustExp i vs (CLet fc x val sc) = do
     let vs' = extendSVars [x] vs
     val' <- rustExp i vs val
     sc' <- rustExp i vs' sc
-    let MN n index = lookupSVar First vs'
-      | pure (Crash "Unexpected variable name")
+    index <- expectMN (lookupSVar First vs')
     pure $ Let (MN (toNat index)) val' sc'
   rustExp i vs (CApp fc x args) =
     pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
