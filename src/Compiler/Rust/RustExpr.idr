@@ -8,9 +8,10 @@ import Data.SortedMap
 
 
 public export
-data RustName
-  = UN String
-  | MN Nat
+data RustUN = UN String
+
+public export
+data RustMN = MN Nat
 
 public export
 data RustConstant : Type where
@@ -28,9 +29,10 @@ mutual
   public export
   data RustExpr : Type where
     PrimVal : RustConstant -> RustExpr
-    Ref : RustName -> RustExpr
-    Let : RustName -> RustExpr -> RustExpr -> RustExpr
-    Lam : RustName -> RustExpr -> RustExpr
+    RefUN : RustUN -> RustExpr
+    RefMN : RustMN -> RustExpr
+    Let : RustMN -> RustExpr -> RustExpr -> RustExpr
+    Lam : RustMN -> RustExpr -> RustExpr
     App : RustExpr -> List RustExpr -> RustExpr
     Con : Int -> List RustExpr -> RustExpr
     BinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
@@ -41,7 +43,7 @@ mutual
 
   public export
   data RustConAlt : Type where
-    MkConAlt : (tag : Int) -> (args : List RustName) -> RustExpr -> RustConAlt
+    MkConAlt : (tag : Int) -> (args : List RustMN) -> RustExpr -> RustConAlt
 
   public export
   data RustConstAlt : Type where
@@ -49,7 +51,7 @@ mutual
 
 public export
 data RustDecl : Type where
-  MkFun : String -> List RustName -> RustExpr -> RustDecl
+  MkFun : RustUN -> List RustMN -> RustExpr -> RustDecl
 
 
 
@@ -84,9 +86,14 @@ dataConstructor TDouble = "Double"
 dataConstructor TChar = "Char"
 dataConstructor TStr = "Str"
 
-genRustName : RustName -> String
-genRustName (UN x) = x
-genRustName (MN x) = "v" ++ show x
+genRustUN : RustUN -> String
+genRustUN (UN x) = x
+
+genRustMN : RustMN -> String
+genRustMN (MN x) = "v" ++ show x
+
+genRustMNIndex : RustMN -> Nat -> String
+genRustMNIndex mn index = genRustMN mn ++ "_" ++ show index
 
 genConstant : RustConstant -> String
 genConstant (CInt x) = "Int(" ++ show x ++ ")"
@@ -100,18 +107,17 @@ genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
 genConstant (CStr x) = "Str(\"" ++ x ++ "\".to_string())" -- TODO: Does not handle Unicode characters
 genConstant CWorld = "World"
 
-genVariableClones : Nat -> RustName -> String -> String
+genVariableClones : Nat -> RustMN -> String -> String
 genVariableClones Z name scope = scope
 genVariableClones (S k) name scope =
-  wrapLet (genRustName name ++ "_" ++ show k) (wrapClone (genRustName name)) (genVariableClones k name scope)
+  wrapLet (genRustMN name ++ "_" ++ show k) (wrapClone (genRustMN name)) (genVariableClones k name scope)
 
-genArgsClones : List RustName -> SortedMap Nat Nat -> String -> String
+genArgsClones : List RustMN -> SortedMap Nat Nat -> String -> String
 genArgsClones [] usedIds scope = scope
-genArgsClones (varRustName@(MN x) :: xs) usedIds scope =
+genArgsClones (n@(MN x) :: xs) usedIds scope =
   let Just cloneCount = SortedMap.lookup x usedIds
     | Nothing => genArgsClones xs usedIds scope
-  in genVariableClones cloneCount varRustName scope
-genArgsClones (_ :: xs) usedIds scope = genArgsClones xs usedIds scope
+  in genVariableClones cloneCount n scope
 
 repeatClones : List Nat -> SortedMap Nat Nat -> List (String, String)
 repeatClones keepIds usedIds = do
@@ -133,10 +139,9 @@ genClones [] scope = scope
 genClones ((from, to) :: xs) scope =
   wrapLet to (wrapClone from) (genClones xs scope)
 
-deleteArgs : List RustName -> SortedMap Nat Nat -> SortedMap Nat Nat
+deleteArgs : List RustMN -> SortedMap Nat Nat -> SortedMap Nat Nat
 deleteArgs [] usedIds = usedIds
 deleteArgs ((MN x) :: xs) usedIds = deleteArgs xs (SortedMap.delete x usedIds)
-deleteArgs (_ :: xs) usedIds = deleteArgs xs usedIds
 
 mutual
   genConAlt : RustConAlt -> State (SortedMap Nat Nat) String
@@ -148,9 +153,9 @@ mutual
     let assignments = map genAssignment (zip [0..(length args `minus` 1)] args)
     pure $ "DataCon { tag: " ++ show tag ++ ", ref args } => { " ++ showSep "; " (assignments ++ [newScope]) ++ " }"
   where
-    genAssignment : (Nat, RustName) -> String
+    genAssignment : (Nat, RustMN) -> String
     genAssignment (index, name) =
-      "let " ++ genRustName name ++ " = Arc::clone(&args[" ++ show index ++ "])"
+      "let " ++ genRustMN name ++ " = Arc::clone(&args[" ++ show index ++ "])"
 
   genConstAlt : RustConstAlt -> State (SortedMap Nat Nat) String
   genConstAlt (MkConstAlt constant scope) =
@@ -163,23 +168,21 @@ mutual
 
   genExpr : RustExpr -> State (SortedMap Nat Nat) String
   genExpr (PrimVal val) = pure $ "Arc::new(" ++ genConstant val ++ ")"
-  genExpr (Ref n@(UN x)) = pure $ genRustName n
-  genExpr (Ref n@(MN x)) = do
+  genExpr (RefUN n) = pure $ genRustUN n
+  genExpr (RefMN n@(MN x)) = do
     usedIds <- get
     let Just nextIndex = SortedMap.lookup x usedIds
       | Nothing => do
         put $ insert x 0 usedIds
-        pure $ wrapClone (genRustName n)
+        pure $ wrapClone (genRustMN n)
     put $ insert x (nextIndex + 1) usedIds
-    pure $ wrapClone (genRustName n ++ "_" ++ show nextIndex)
+    pure $ wrapClone (genRustMNIndex n nextIndex)
   genExpr (Let n val scope) = do
     innerScope <- genExpr scope
     usedIds <- get
     let newScope = genArgsClones [n] usedIds innerScope
     put (deleteArgs [n] usedIds)
-    pure $ wrapLet (genRustName n) !(genExpr val) newScope
-  genExpr (Lam n@(UN x) scope) =
-    genExpr (Crash ("Invalid name in lambda: " ++ genRustName n))
+    pure $ wrapLet (genRustMN n) !(genExpr val) newScope
   genExpr (Lam n@(MN x) scope) = do
     innerScope <- genExpr scope
     usedIds <- get
@@ -187,12 +190,12 @@ mutual
     let newClones = freshClones [x] usedIds
     let newScope = genClones (previousClones ++ newClones) innerScope
     put (deleteArgs [n] usedIds)
-    pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustName n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
+    pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustMN n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
   genExpr (App expr args) = do
     outArgs <- traverse genExpr args
     outExpr <- genExpr expr
     let calledExpr = case expr of
-      Ref (UN fnRustName) => fnRustName
+      RefUN (UN fnName) => fnName
       _ => "(" ++ outExpr ++ ".unwrap_lambda())"
     pure $ calledExpr ++ "(" ++ showSep ", " outArgs ++ ")"
   genExpr (Con tag args) = do
@@ -227,7 +230,7 @@ genDecl : RustDecl -> String
 genDecl (MkFun name args scope) =
     let (code, usedIds) = State.runState (genExpr scope) empty
     in let newScope = genArgsClones args usedIds code
-    in "fn " ++ name ++ "(" ++ showSep ", " (map showArg args) ++ ") -> Arc<IdrisValue> { " ++ newScope ++ " }\n"
+    in "fn " ++ genRustUN name ++ "(" ++ showSep ", " (map showArg args) ++ ") -> Arc<IdrisValue> { " ++ newScope ++ " }\n"
   where
-    showArg : RustName -> String
-    showArg arg = genRustName arg ++ ": Arc<IdrisValue>"
+    showArg : RustMN -> String
+    showArg arg = genRustMN arg ++ ": Arc<IdrisValue>"

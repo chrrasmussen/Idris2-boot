@@ -231,7 +231,7 @@ mutual
   rustOp (Sub ty) [x, y] = binOp ty "-" x y
   rustOp (Mul ty) [x, y] = binOp ty "*" x y
   rustOp (Div ty) [x, y] = binOp ty "/" x y
-  rustOp StrAppend [x, y] = App (Ref (UN "idris_rts_str_append")) [x, y]
+  rustOp StrAppend [x, y] = App (RefUN (UN "idris_rts_str_append")) [x, y]
   -- TODO: Add missing operators
   rustOp op _ = Crash ("Unknown operator " ++ show op)
 
@@ -264,8 +264,8 @@ mutual
   rustExp : Int -> SVars vars -> CExp vars -> Core RustExpr
   rustExp i vs (CLocal fc el) = do
     index <- expectMN (lookupSVar el vs)
-    pure $ Ref (MN (toNat index))
-  rustExp i vs (CRef fc n) = pure $ Ref (UN (schName n))
+    pure $ RefMN (MN (toNat index))
+  rustExp i vs (CRef fc n) = pure $ RefUN (UN (schName n))
   rustExp i vs (CLam fc x sc) = do
     let vs' = extendSVars [x] vs
     sc' <- rustExp i vs' sc
@@ -374,8 +374,8 @@ mutual
   fileOp op = "(blodwen-file-op (lambda () " ++ op ++ "))"
 
   rustExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core RustExpr
-  rustExtPrim i vs PutStr [arg, world] = pure $ rustWorld $ App (Ref (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
-  rustExtPrim i vs GetStr [world] = pure $ rustWorld $ App (Ref (UN "idris_rts_get_str")) []
+  rustExtPrim i vs PutStr [arg, world] = pure $ rustWorld $ App (RefUN (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
+  rustExtPrim i vs GetStr [world] = pure $ rustWorld $ App (RefUN (UN "idris_rts_get_str")) []
   rustExtPrim i vs prim args = throw (InternalError ("Badly formed external primitive " ++ show prim ++ " " ++ show args))
 
   -- External primitives which are common to the scheme codegens (they can be
@@ -426,7 +426,7 @@ mutual
       = throw (InternalError ("Badly formed external primitive " ++ show prim
                                 ++ " " ++ show args))
 
-rustArgList : SVars ns -> List RustName
+rustArgList : SVars ns -> List RustMN
 rustArgList [] = []
 rustArgList ((MN n i) :: xs) = MN (toNat i) :: rustArgList xs
 rustArgList (_ :: xs) = rustArgList xs
@@ -434,7 +434,7 @@ rustArgList (_ :: xs) = rustArgList xs
 rustDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core String
 rustDef n (MkFun args exp) =
   let vs = initSVars args in
-  pure $ genDecl $ MkFun (schName !(getFullName n)) (rustArgList vs) !(rustExp 0 vs exp)
+  pure $ genDecl $ MkFun (UN (schName !(getFullName n))) (rustArgList vs) !(rustExp 0 vs exp)
 rustDef n (MkError exp) =
   pure "" -- TODO: Do I need this?
 rustDef n (MkCon t a) =
