@@ -92,8 +92,9 @@ genRustUN (UN x) = x
 genRustMN : RustMN -> String
 genRustMN (MN x) = "v" ++ show x
 
-genRustMNIndex : RustMN -> Nat -> String
-genRustMNIndex mn index = genRustMN mn ++ "_" ++ show index
+genRustMNIndex : RustMN -> Maybe Nat -> String
+genRustMNIndex mn Nothing = genRustMN mn
+genRustMNIndex mn (Just index) = genRustMN mn ++ "_" ++ show index
 
 genConstant : RustConstant -> String
 genConstant (CInt x) = "Int(" ++ show x ++ ")"
@@ -124,7 +125,7 @@ repeatClones keepIds usedIds = do
   (n, count) <- toList usedIds
   guard (n `elem` keepIds)
   index <- [0..count]
-  let varName = "v" ++ show n ++ (if count >= 1 then "_" ++ show (index `minus` 1) else "")
+  let varName = genRustMNIndex (MN n) (if count >= 1 then Just (index `minus` 1) else Nothing)
   pure (varName, varName)
 
 freshClones : List Nat -> SortedMap Nat Nat -> List (String, String)
@@ -132,7 +133,7 @@ freshClones keepIds usedIds = do
   (n, count) <- toList usedIds
   guard $ (n `elem` keepIds) && (count >= 1)
   index <- [0..(count `minus` 1)]
-  pure ("v" ++ show n, "v" ++ show n ++ "_" ++ show index)
+  pure (genRustMN (MN n), genRustMNIndex (MN n) (Just index))
 
 genClones : List (String, String) -> String -> String
 genClones [] scope = scope
@@ -176,7 +177,7 @@ mutual
         put $ insert x 0 usedIds
         pure $ wrapClone (genRustMN n)
     put $ insert x (nextIndex + 1) usedIds
-    pure $ wrapClone (genRustMNIndex n nextIndex)
+    pure $ wrapClone (genRustMNIndex n (Just nextIndex))
   genExpr (Let n val scope) = do
     innerScope <- genExpr scope
     usedIds <- get
