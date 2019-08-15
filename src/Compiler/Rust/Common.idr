@@ -23,16 +23,16 @@ schString s = concatMap okchar (unpack s)
                   then cast c
                   else "C_" ++ show (cast {to=Int} c)
 
-schName : Name -> String
-schName (NS ns n) = "ns_" ++ showSep "_" ns ++ "_" ++ schName n
-schName (UN n) = schString n
-schName (MN n i) = schString n ++ "_" ++ show i
-schName (PV n d) = "pat__" ++ schName n
-schName (DN _ n) = schName n
-schName (Nested i n) = "n__" ++ show i ++ "_" ++ schName n
-schName (CaseBlock x y) = "case__" ++ show x ++ "_" ++ show y
-schName (WithBlock x y) = "with__" ++ show x ++ "_" ++ show y
-schName (Resolved i) = "fn__" ++ show i
+rustName : Name -> String
+rustName (NS ns n) = "ns_" ++ showSep "_" ns ++ "_" ++ rustName n
+rustName (UN n) = schString n
+rustName (MN n i) = schString n ++ "_" ++ show i
+rustName (PV n d) = "pat__" ++ rustName n
+rustName (DN _ n) = rustName n
+rustName (Nested i n) = "n__" ++ show i ++ "_" ++ rustName n
+rustName (CaseBlock x y) = "case__" ++ show x ++ "_" ++ show y
+rustName (WithBlock x y) = "with__" ++ show x ++ "_" ++ show y
+rustName (Resolved i) = "fn__" ++ show i
 
 -- local variable names as scheme names - we need to invent new names for the locals
 -- because there might be shadows in the original expression which can't be resolved
@@ -244,7 +244,7 @@ mutual
       bindArgs : Int -> (ns : List Name) -> SVars (ns ++ vars) -> String -> String
       bindArgs i [] vs body = body
       bindArgs i (n :: ns) (v :: vs) body
-          = "(let ((" ++ schName v ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
+          = "(let ((" ++ rustName v ++ " " ++ "(vector-ref " ++ target ++ " " ++ show i ++ "))) "
                   ++ bindArgs (i + 1) ns vs body ++ ")"
 
   schConstAlt : Int -> SVars vars -> String -> CConstAlt vars -> Core String
@@ -265,7 +265,7 @@ mutual
   rustExp i vs (CLocal fc el) = do
     index <- expectMN (lookupSVar el vs)
     pure $ RefMN (MN (toNat index))
-  rustExp i vs (CRef fc n) = pure $ RefUN (UN (schName n))
+  rustExp i vs (CRef fc n) = pure $ RefUN (UN (rustName n))
   rustExp i vs (CLam fc x sc) = do
     let vs' = extendSVars [x] vs
     sc' <- rustExp i vs' sc
@@ -324,17 +324,17 @@ mutual
 
   export
   schExp : Int -> SVars vars -> CExp vars -> Core String
-  schExp i vs (CLocal fc el) = pure $ schName (lookupSVar el vs)
-  schExp i vs (CRef fc n) = pure $ schName n
+  schExp i vs (CLocal fc el) = pure $ rustName (lookupSVar el vs)
+  schExp i vs (CRef fc n) = pure $ rustName n
   schExp i vs (CLam fc x sc)
       = do let vs' = extendSVars [x] vs
            sc' <- schExp i vs' sc
-           pure $ "(lambda (" ++ schName (lookupSVar First vs') ++ ") " ++ sc' ++ ")"
+           pure $ "(lambda (" ++ rustName (lookupSVar First vs') ++ ") " ++ sc' ++ ")"
   schExp i vs (CLet fc x val sc)
       = do let vs' = extendSVars [x] vs
            val' <- schExp i vs val
            sc' <- schExp i vs' sc
-           pure $ "(let ((" ++ schName (lookupSVar First vs') ++ " " ++ val' ++ ")) " ++ sc' ++ ")"
+           pure $ "(let ((" ++ rustName (lookupSVar First vs') ++ " " ++ val' ++ ")) " ++ sc' ++ ")"
   schExp i vs (CApp fc x [])
       = pure $ "(" ++ !(schExp i vs x) ++ ")"
   schExp i vs (CApp fc x args)
@@ -434,7 +434,7 @@ rustArgList (_ :: xs) = rustArgList xs
 rustDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core String
 rustDef n (MkFun args exp) =
   let vs = initSVars args in
-  pure $ genDecl $ MkFun (UN (schName !(getFullName n))) (rustArgList vs) !(rustExp 0 vs exp)
+  pure $ genDecl $ MkFun (UN (rustName !(getFullName n))) (rustArgList vs) !(rustExp 0 vs exp)
 rustDef n (MkError exp) =
   pure "" -- TODO: Do I need this?
 rustDef n (MkCon t a) =
