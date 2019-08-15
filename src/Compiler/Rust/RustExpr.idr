@@ -202,13 +202,13 @@ mutual
     outExpr <- genExpr expr
     outAlts <- traverse genConAlt alts
     outDef <- genAltDef def
-    let catchAllCase = ["_ => panic!(\"No matches\")"]
+    let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
     pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
   genExpr (ConstCase expr alts def) = do
     outExpr <- genExpr expr
     outAlts <- traverse genConstAlt alts
     outDef <- genAltDef def
-    let catchAllCase = ["_ => panic!(\"No matches\")"]
+    let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
     pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
   genExpr Erased = pure $ "Arc::new(Erased)"
   genExpr (Crash msg) = pure $ "{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }"
