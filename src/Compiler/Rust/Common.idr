@@ -228,6 +228,7 @@ mutual
   rustOp (Sub ty) [x, y] = binOp ty "-" x y
   rustOp (Mul ty) [x, y] = binOp ty "*" x y
   rustOp (Div ty) [x, y] = binOp ty "/" x y
+  rustOp StrAppend [x, y] = App (Ref (UN "idris_rts_str_append")) [x, y]
   -- TODO: Add missing operators
   rustOp op _ = Crash ("Unknown operator " ++ show op)
 

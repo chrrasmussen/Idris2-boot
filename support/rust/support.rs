@@ -51,6 +51,10 @@ impl IdrisValue {
     }
 }
 
+fn idris_rts_str_append(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Str(format!("{}{}", x.unwrap_str(), y.unwrap_str())))
+}
+
 fn idris_rts_put_str(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
     print!("{}", x.unwrap_str());
     Arc::new(Erased)
