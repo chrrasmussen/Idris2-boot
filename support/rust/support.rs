@@ -4,6 +4,7 @@
 
 // extern crate num_bigint;
 
+use std::str::FromStr;
 use std::fmt;
 use std::sync::Arc;
 use std::io::{self, BufRead};
@@ -57,7 +58,7 @@ impl fmt::Debug for IdrisValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Int(x) => write!(f, "Int({})", x),
-            // Integer(x) => write!(f, "Integer({})", x),
+            // Integer(x) => write!(f, "Integer({})", x.to_string()),
             Char(x) => write!(f, "Char({})", x),
             Double(x) => write!(f, "Double({})", x),
             Str(x) => write!(f, "Str({})", x),

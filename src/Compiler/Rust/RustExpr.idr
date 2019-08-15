@@ -90,7 +90,8 @@ genRustName (MN x) = "v" ++ show x
 
 genConstant : RustConstant -> String
 genConstant (CInt x) = "Int(" ++ show x ++ ")"
-genConstant (CInteger x) = "Int(" ++ show x ++ ")" -- TODO: Should be `Integer`
+genConstant (CInteger x) = "Int(" ++ show x ++ ")"
+--genConstant (CInteger x) = "Integer(BigInt::from_str(\"" ++ show x ++ "\").unwrap())" -- TODO: `Integer` solution
 genConstant (CDouble x) = "Double(" ++ show x ++ "f64)"
 genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
   where
