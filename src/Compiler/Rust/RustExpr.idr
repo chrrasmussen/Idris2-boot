@@ -34,6 +34,7 @@ mutual
     Con : Int -> List RustExpr -> RustExpr
     BinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
     ConCase : RustExpr -> List RustConAlt -> Maybe RustExpr -> RustExpr
+    ConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
     Erased : RustExpr
     Crash : String -> RustExpr
 
@@ -41,16 +42,32 @@ mutual
   data RustConAlt : Type where
     MkConAlt : (tag : Int) -> (args : List RustName) -> RustExpr -> RustConAlt
 
+  public export
+  data RustConstAlt : Type where
+    MkConstAlt : RustConstant -> RustExpr -> RustConstAlt
+
 public export
 data RustDecl : Type where
   MkFun : String -> List RustName -> RustExpr -> RustDecl
 
 
 
+-- STRING HELPER FUNCTIONS
+
 showSep : String -> List String -> String
 showSep sep [] = ""
 showSep sep [x] = x
 showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
+
+wrapLet : String -> String -> String -> String
+wrapLet n val scope =
+  "{ let " ++ n ++  " = " ++ val ++ "; " ++ scope ++ " }"
+
+wrapClone : String -> String
+wrapClone varName = "Arc::clone(&" ++ varName ++ ")"
+
+
+-- RUST EXPR TO STRING
 
 unwrapName : RustType -> String
 unwrapName TInt = "int"
@@ -71,26 +88,19 @@ genRustName (UN x) = x
 genRustName (MN x) = "v" ++ show x
 
 genConstant : RustConstant -> String
-genConstant (CInt x) = "Arc::new(Int(" ++ show x ++ "))"
-genConstant (CInteger x) = "Arc::new(Int(" ++ show x ++ "))" -- TODO: Should be `Integer`
-genConstant (CDouble x) = "Arc::new(Double(" ++ show x ++ "f64))"
-genConstant (CChar x) = "Arc::new(Char('\\u{" ++ toHex x ++ "}'))"
+genConstant (CInt x) = "Int(" ++ show x ++ ")"
+genConstant (CInteger x) = "Int(" ++ show x ++ ")" -- TODO: Should be `Integer`
+genConstant (CDouble x) = "Double(" ++ show x ++ "f64)"
+genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
   where
     toHex : Char -> String
     toHex c = substr 2 6 (b32ToHexString (fromInteger (cast (ord c))))
-genConstant (CStr x) = "Arc::new(Str(\"" ++ x ++ "\".to_string()))" -- TODO: Does not handle Unicode characters
-
-genLet : String -> String -> String -> String
-genLet n val scope =
-  "{ let " ++ n ++  " = " ++ val ++ "; " ++ scope ++ " }"
-
-genClone : String -> String
-genClone varName = "Arc::clone(&" ++ varName ++ ")"
+genConstant (CStr x) = "Str(\"" ++ x ++ "\".to_string())" -- TODO: Does not handle Unicode characters
 
 genVariableClones : Nat -> RustName -> String -> String
 genVariableClones Z name scope = scope
 genVariableClones (S k) name scope =
-  genLet (genRustName name ++ "_" ++ show k) (genClone (genRustName name)) (genVariableClones k name scope)
+  wrapLet (genRustName name ++ "_" ++ show k) (wrapClone (genRustName name)) (genVariableClones k name scope)
 
 genArgsClones : List RustName -> SortedMap Nat Nat -> String -> String
 genArgsClones [] usedIds scope = scope
@@ -118,7 +128,7 @@ freshClones keepIds usedIds = do
 genClones : List (String, String) -> String -> String
 genClones [] scope = scope
 genClones ((from, to) :: xs) scope =
-  genLet to (genClone from) (genClones xs scope)
+  wrapLet to (wrapClone from) (genClones xs scope)
 
 deleteArgs : List RustName -> SortedMap Nat Nat -> SortedMap Nat Nat
 deleteArgs [] usedIds = usedIds
@@ -137,30 +147,34 @@ mutual
   where
     genAssignment : (Nat, RustName) -> String
     genAssignment (index, name) =
-      "let " ++ genRustName name ++ " = " ++ genClone ("args[" ++ show index ++ "]")
+      "let " ++ genRustName name ++ " = Arc::clone(&args[" ++ show index ++ "])"
 
-  genConAltDef : Maybe RustExpr -> State (SortedMap Nat Nat) (List String)
-  genConAltDef Nothing = pure $ []
-  genConAltDef (Just def) =
+  genConstAlt : RustConstAlt -> State (SortedMap Nat Nat) String
+  genConstAlt (MkConstAlt constant scope) =
+    pure $ genConstant constant ++ " => { " ++ !(genExpr scope) ++ " }"
+
+  genAltDef : Maybe RustExpr -> State (SortedMap Nat Nat) (List String)
+  genAltDef Nothing = pure $ []
+  genAltDef (Just def) =
     pure $ ["_ => " ++ !(genExpr def)]
 
   genExpr : RustExpr -> State (SortedMap Nat Nat) String
-  genExpr (PrimVal val) = pure $ genConstant val
+  genExpr (PrimVal val) = pure $ "Arc::new(" ++ genConstant val ++ ")"
   genExpr (Ref n@(UN x)) = pure $ genRustName n
   genExpr (Ref n@(MN x)) = do
     usedIds <- get
     let Just nextIndex = SortedMap.lookup x usedIds
       | Nothing => do
         put $ insert x 0 usedIds
-        pure $ genClone (genRustName n)
+        pure $ wrapClone (genRustName n)
     put $ insert x (nextIndex + 1) usedIds
-    pure $ genClone (genRustName n ++ "_" ++ show nextIndex)
+    pure $ wrapClone (genRustName n ++ "_" ++ show nextIndex)
   genExpr (Let n val scope) = do
     innerScope <- genExpr scope
     usedIds <- get
     let newScope = genArgsClones [n] usedIds innerScope
     put (deleteArgs [n] usedIds)
-    pure $ genLet (genRustName n) !(genExpr val) newScope
+    pure $ wrapLet (genRustName n) !(genExpr val) newScope
   genExpr (Lam n@(UN x) scope) =
     genExpr (Crash ("Invalid name in lambda: " ++ genRustName n))
   genExpr (Lam n@(MN x) scope) = do
@@ -187,7 +201,13 @@ mutual
   genExpr (ConCase expr alts def) = do
     outExpr <- genExpr expr
     outAlts <- traverse genConAlt alts
-    outDef <- genConAltDef def
+    outDef <- genAltDef def
+    let catchAllCase = ["_ => panic!(\"No matches\")"]
+    pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
+  genExpr (ConstCase expr alts def) = do
+    outExpr <- genExpr expr
+    outAlts <- traverse genConstAlt alts
+    outDef <- genAltDef def
     let catchAllCase = ["_ => panic!(\"No matches\")"]
     pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
   genExpr Erased = pure $ "Arc::new(Erased)"

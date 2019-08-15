@@ -304,8 +304,16 @@ mutual
       let names = map (MN . toNat) indexes
       outScope <- rustExp i vs' scope
       pure $ MkConAlt tag names outScope
-
-  rustExp i vs (CConstCase fc sc alts def) = pure $ Crash "CConstCase not implemented"
+  rustExp i vs (CConstCase fc expr alts def) = do
+    outExpr <- rustExp i vs expr
+    outAlts <- traverse (toRustConstAlt i vs) alts
+    outDef <- maybe (pure Nothing) (\d => pure (Just !(rustExp i vs d))) def
+    pure $ ConstCase outExpr outAlts outDef
+  where
+    toRustConstAlt : Int -> SVars vars -> CConstAlt vars -> Core RustConstAlt
+    toRustConstAlt i vs (MkConstAlt constant scope) = do
+      outScope <- rustExp i vs scope
+      pure $ MkConstAlt (rustConstant constant) outScope
   rustExp i vs (CPrimVal fc c) =
     pure $ PrimVal (rustConstant c)
   rustExp i vs (CErased fc) =
