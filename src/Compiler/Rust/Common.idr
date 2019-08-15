@@ -229,7 +229,7 @@ mutual
   rustOp (Mul ty) [x, y] = binOp ty "*" x y
   rustOp (Div ty) [x, y] = binOp ty "/" x y
   -- TODO: Add missing operators
-  rustOp _ _ = Crash "Unknown operator"
+  rustOp op _ = Crash ("Unknown operator " ++ show op)
 
   schConAlt : Int -> SVars vars -> String -> CConAlt vars -> Core String
   schConAlt {vars} i vs target (MkConAlt n tag args sc)
