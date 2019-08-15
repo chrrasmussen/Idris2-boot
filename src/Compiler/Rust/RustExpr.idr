@@ -13,6 +13,12 @@ data RustUN = UN String
 public export
 data RustMN = MN Nat
 
+Eq RustMN where
+  (MN x) == (MN y) = x == y
+
+Ord RustMN where
+  compare (MN x) (MN y) = compare x y
+
 public export
 data RustConstant : Type where
   CInt : Int -> RustConstant
@@ -113,39 +119,39 @@ genVariableClones Z name scope = scope
 genVariableClones (S k) name scope =
   wrapLet (genRustMN name ++ "_" ++ show k) (wrapClone (genRustMN name)) (genVariableClones k name scope)
 
-genArgsClones : List RustMN -> SortedMap Nat Nat -> String -> String
+genArgsClones : List RustMN -> SortedMap RustMN Nat -> String -> String
 genArgsClones [] usedIds scope = scope
-genArgsClones (n@(MN x) :: xs) usedIds scope =
+genArgsClones (x :: xs) usedIds scope =
   let Just cloneCount = SortedMap.lookup x usedIds
     | Nothing => genArgsClones xs usedIds scope
-  in genVariableClones cloneCount n scope
+  in genVariableClones cloneCount x scope
 
-repeatClones : List Nat -> SortedMap Nat Nat -> List (String, String)
+repeatClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
 repeatClones keepIds usedIds = do
   (n, count) <- toList usedIds
   guard (n `elem` keepIds)
   index <- [0..count]
-  let varName = genRustMNIndex (MN n) (if count >= 1 then Just (index `minus` 1) else Nothing)
+  let varName = genRustMNIndex n (if count >= 1 then Just (index `minus` 1) else Nothing)
   pure (varName, varName)
 
-freshClones : List Nat -> SortedMap Nat Nat -> List (String, String)
+freshClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
 freshClones keepIds usedIds = do
   (n, count) <- toList usedIds
   guard $ (n `elem` keepIds) && (count >= 1)
   index <- [0..(count `minus` 1)]
-  pure (genRustMN (MN n), genRustMNIndex (MN n) (Just index))
+  pure (genRustMN n, genRustMNIndex n (Just index))
 
 genClones : List (String, String) -> String -> String
 genClones [] scope = scope
 genClones ((from, to) :: xs) scope =
   wrapLet to (wrapClone from) (genClones xs scope)
 
-deleteArgs : List RustMN -> SortedMap Nat Nat -> SortedMap Nat Nat
+deleteArgs : List RustMN -> SortedMap RustMN Nat -> SortedMap RustMN Nat
 deleteArgs [] usedIds = usedIds
-deleteArgs ((MN x) :: xs) usedIds = deleteArgs xs (SortedMap.delete x usedIds)
+deleteArgs (x :: xs) usedIds = deleteArgs xs (SortedMap.delete x usedIds)
 
 mutual
-  genConAlt : RustConAlt -> State (SortedMap Nat Nat) String
+  genConAlt : RustConAlt -> State (SortedMap RustMN Nat) String
   genConAlt (MkConAlt tag args scope) = do
     innerScope <- genExpr scope
     usedIds <- get
@@ -158,25 +164,25 @@ mutual
     genAssignment (index, name) =
       "let " ++ genRustMN name ++ " = Arc::clone(&args[" ++ show index ++ "])"
 
-  genConstAlt : RustConstAlt -> State (SortedMap Nat Nat) String
+  genConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) String
   genConstAlt (MkConstAlt constant scope) =
     pure $ genConstant constant ++ " => { " ++ !(genExpr scope) ++ " }"
 
-  genAltDef : Maybe RustExpr -> State (SortedMap Nat Nat) (List String)
+  genAltDef : Maybe RustExpr -> State (SortedMap RustMN Nat) (List String)
   genAltDef Nothing = pure $ []
   genAltDef (Just def) =
     pure $ ["_ => " ++ !(genExpr def)]
 
-  genExpr : RustExpr -> State (SortedMap Nat Nat) String
+  genExpr : RustExpr -> State (SortedMap RustMN Nat) String
   genExpr (PrimVal val) = pure $ "Arc::new(" ++ genConstant val ++ ")"
   genExpr (RefUN n) = pure $ genRustUN n
-  genExpr (RefMN n@(MN x)) = do
+  genExpr (RefMN n) = do
     usedIds <- get
-    let Just nextIndex = SortedMap.lookup x usedIds
+    let Just nextIndex = SortedMap.lookup n usedIds
       | Nothing => do
-        put $ insert x 0 usedIds
+        put $ insert n 0 usedIds
         pure $ wrapClone (genRustMN n)
-    put $ insert x (nextIndex + 1) usedIds
+    put $ insert n (nextIndex + 1) usedIds
     pure $ wrapClone (genRustMNIndex n (Just nextIndex))
   genExpr (Let n val scope) = do
     innerScope <- genExpr scope
@@ -184,11 +190,11 @@ mutual
     let newScope = genArgsClones [n] usedIds innerScope
     put (deleteArgs [n] usedIds)
     pure $ wrapLet (genRustMN n) !(genExpr val) newScope
-  genExpr (Lam n@(MN x) scope) = do
+  genExpr (Lam n@(MN index) scope) = do
     innerScope <- genExpr scope
     usedIds <- get
-    let previousClones = repeatClones (delete x [0..(x `minus` 1)]) usedIds
-    let newClones = freshClones [x] usedIds
+    let previousClones = repeatClones (delete n (map MN [0..(index `minus` 1)])) usedIds
+    let newClones = freshClones [n] usedIds
     let newScope = genClones (previousClones ++ newClones) innerScope
     put (deleteArgs [n] usedIds)
     pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustMN n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
