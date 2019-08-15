@@ -4,6 +4,7 @@
 
 // extern crate num_bigint;
 
+use std::fmt;
 use std::sync::Arc;
 use std::io::{self, BufRead};
 // use num_bigint::BigInt;
@@ -48,6 +49,21 @@ impl IdrisValue {
 
     fn unwrap_data_con(&self) -> (&u32, &Vec<Arc<IdrisValue>>) {
         if let DataCon { tag, args } = self { (tag, args) } else { panic!("Expected IdrisValue::DataCon") }
+    }
+}
+
+impl fmt::Debug for IdrisValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Int(x) => write!(f, "Int({})", x),
+            // Integer(x) => write!(f, "Integer({})", x),
+            Char(x) => write!(f, "Char({})", x),
+            Double(x) => write!(f, "Double({})", x),
+            Str(x) => write!(f, "Str({})", x),
+            Lambda(_) => write!(f, "Lambda(_)"),
+            Erased => write!(f, "Erased"),
+            DataCon { tag, args } => write!(f, "DataCon {{ tag: {}, args: {:?} }}", tag, args),
+        }
     }
 }
 
