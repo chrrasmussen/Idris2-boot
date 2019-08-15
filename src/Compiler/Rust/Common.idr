@@ -191,7 +191,7 @@ mkWorld : String -> String
 mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
 rustWorld : RustExpr -> RustExpr
-rustWorld res = Con 0 [Erased, res, Erased] -- MkIORes
+rustWorld res = Con 0 [Erased, res, PrimVal CWorld] -- MkIORes
 
 rustConstant : Constant -> RustConstant
 rustConstant (I x) = CInt x
@@ -199,7 +199,7 @@ rustConstant (BI x) = CInteger x
 rustConstant (Str x) = CStr x
 rustConstant (Ch x) = CChar x
 rustConstant (Db x) = CDouble x
-rustConstant WorldVal = CInt (-1)
+rustConstant WorldVal = CWorld
 rustConstant IntType = CInt (-1)
 rustConstant IntegerType = CInt (-1)
 rustConstant StringType = CInt (-1)

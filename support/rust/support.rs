@@ -18,8 +18,9 @@ enum IdrisValue {
     Double(f64),
     Str(String),
     Lambda(Box<Fn(Arc<IdrisValue>) -> Arc<IdrisValue>>),
-    Erased,
     DataCon { tag: u32, args: Vec<Arc<IdrisValue>> },
+    Erased,
+    World,
 }
 
 impl IdrisValue {
@@ -61,8 +62,9 @@ impl fmt::Debug for IdrisValue {
             Double(x) => write!(f, "Double({})", x),
             Str(x) => write!(f, "Str({})", x),
             Lambda(_) => write!(f, "Lambda(_)"),
-            Erased => write!(f, "Erased"),
             DataCon { tag, args } => write!(f, "DataCon {{ tag: {}, args: {:?} }}", tag, args),
+            Erased => write!(f, "Erased"),
+            World => write!(f, "World"),
         }
     }
 }

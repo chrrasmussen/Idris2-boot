@@ -19,6 +19,7 @@ data RustConstant : Type where
   CDouble : Double -> RustConstant
   CChar : Char -> RustConstant
   CStr : String -> RustConstant
+  CWorld : RustConstant
 
 public export
 data RustType = TInt | TInteger | TDouble | TChar | TStr
@@ -96,6 +97,7 @@ genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
     toHex : Char -> String
     toHex c = substr 2 6 (b32ToHexString (fromInteger (cast (ord c))))
 genConstant (CStr x) = "Str(\"" ++ x ++ "\".to_string())" -- TODO: Does not handle Unicode characters
+genConstant CWorld = "World"
 
 genVariableClones : Nat -> RustName -> String -> String
 genVariableClones Z name scope = scope
