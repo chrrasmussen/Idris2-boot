@@ -190,6 +190,9 @@ export
 mkWorld : String -> String
 mkWorld res = schConstructor 0 ["#f", res, "#f"] -- MkIORes
 
+rustWorld : RustExpr -> RustExpr
+rustWorld res = Con 0 [Erased, res, Erased] -- MkIORes
+
 rustConstant : Constant -> RustConstant
 rustConstant (I x) = CInt x
 rustConstant (BI x) = CInteger x
@@ -371,8 +374,8 @@ mutual
   fileOp op = "(blodwen-file-op (lambda () " ++ op ++ "))"
 
   rustExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core RustExpr
-  rustExtPrim i vs PutStr [arg, world] = pure $ App (Ref (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
-  rustExtPrim i vs GetStr [world] = pure $ App (Ref (UN "idris_rts_get_str")) []
+  rustExtPrim i vs PutStr [arg, world] = pure $ rustWorld $ App (Ref (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
+  rustExtPrim i vs GetStr [world] = pure $ rustWorld $ App (Ref (UN "idris_rts_get_str")) []
   rustExtPrim i vs prim args = throw (InternalError ("Badly formed external primitive " ++ show prim ++ " " ++ show args))
 
   -- External primitives which are common to the scheme codegens (they can be
