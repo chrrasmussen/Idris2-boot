@@ -114,18 +114,6 @@ genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
 genConstant (CStr x) = "Str(\"" ++ x ++ "\".to_string())" -- TODO: Does not handle Unicode characters
 genConstant CWorld = "World"
 
-genVariableClones : Nat -> RustMN -> String -> String
-genVariableClones Z name scope = scope
-genVariableClones (S k) name scope =
-  wrapLet (genRustMN name ++ "_" ++ show k) (wrapClone (genRustMN name)) (genVariableClones k name scope)
-
-genArgsClones : List RustMN -> SortedMap RustMN Nat -> String -> String
-genArgsClones [] usedIds scope = scope
-genArgsClones (x :: xs) usedIds scope =
-  let Just cloneCount = SortedMap.lookup x usedIds
-    | Nothing => genArgsClones xs usedIds scope
-  in genVariableClones cloneCount x scope
-
 repeatClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
 repeatClones keepIds usedIds = do
   (n, count) <- toList usedIds
@@ -155,7 +143,8 @@ mutual
   genConAlt (MkConAlt tag args scope) = do
     innerScope <- genExpr scope
     usedIds <- get
-    let newScope = genArgsClones args usedIds innerScope
+    let newClones = freshClones args usedIds
+    let newScope = genClones newClones innerScope
     put (deleteArgs args usedIds)
     let assignments = map genAssignment (zip [0..(length args `minus` 1)] args)
     pure $ "DataCon { tag: " ++ show tag ++ ", ref args } => { " ++ showSep "; " (assignments ++ [newScope]) ++ " }"
@@ -187,7 +176,8 @@ mutual
   genExpr (Let n val scope) = do
     innerScope <- genExpr scope
     usedIds <- get
-    let newScope = genArgsClones [n] usedIds innerScope
+    let newClones = freshClones [n] usedIds
+    let newScope = genClones newClones innerScope
     put (deleteArgs [n] usedIds)
     pure $ wrapLet (genRustMN n) !(genExpr val) newScope
   genExpr (Lam n@(MN index) scope) = do
@@ -234,10 +224,11 @@ genExprNoArgs expr =
 
 export
 genDecl : RustDecl -> String
-genDecl (MkFun name args scope) =
+genDecl (MkFun name args scope) = do
     let (code, usedIds) = State.runState (genExpr scope) empty
-    in let newScope = genArgsClones args usedIds code
-    in "fn " ++ genRustUN name ++ "(" ++ showSep ", " (map showArg args) ++ ") -> Arc<IdrisValue> { " ++ newScope ++ " }\n"
+    let newClones = freshClones args usedIds
+    let newScope = genClones newClones code
+    "fn " ++ genRustUN name ++ "(" ++ showSep ", " (map showArg args) ++ ") -> Arc<IdrisValue> { " ++ newScope ++ " }\n"
   where
     showArg : RustMN -> String
     showArg arg = genRustMN arg ++ ": Arc<IdrisValue>"
