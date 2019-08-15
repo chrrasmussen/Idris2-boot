@@ -73,7 +73,7 @@ genRustName (MN x) = "v" ++ show x
 genConstant : RustConstant -> String
 genConstant (CInt x) = "Arc::new(Int(" ++ show x ++ "))"
 genConstant (CInteger x) = "Arc::new(Int(" ++ show x ++ "))" -- TODO: Should be `Integer`
-genConstant (CDouble x) = "Arc::new(Double(" ++ show x ++ "))"
+genConstant (CDouble x) = "Arc::new(Double(" ++ show x ++ "f64))"
 genConstant (CChar x) = "Arc::new(Char('\\u{" ++ toHex x ++ "}'))"
   where
     toHex : Char -> String
