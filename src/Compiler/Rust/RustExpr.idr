@@ -42,6 +42,7 @@ mutual
     App : RustExpr -> List RustExpr -> RustExpr
     Con : Int -> List RustExpr -> RustExpr
     BinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
+    BoolBinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
     ConCase : RustExpr -> List RustConAlt -> Maybe RustExpr -> RustExpr
     ConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
     StrConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
@@ -211,6 +212,9 @@ mutual
   genExpr (BinOp ty fnName val1 val2) = do
     let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
     pure $ "Arc::new(" ++ dataConstructor ty ++ "(" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ "))"
+  genExpr (BoolBinOp ty fnName val1 val2) = do
+    let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
+    pure $ "Arc::new(Int((" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ ") as i64))"
   genExpr (ConCase expr alts def) = do
     outExpr <- genExpr expr
     outAlts <- traverse genConAlt alts

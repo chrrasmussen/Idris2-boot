@@ -137,6 +137,12 @@ binOp constant fnName x y =
     | Crash "Unknown type for binary operator"
   in BinOp ty fnName x y
 
+boolBinOp : Constant -> String -> RustExpr -> RustExpr -> RustExpr
+boolBinOp constant fnName x y =
+  let Just ty = constantToRustType constant
+    | Crash "Unknown type for binary operator"
+  in BoolBinOp ty fnName x y
+
 rustOp : PrimFn arity -> Vect arity RustExpr -> RustExpr
 rustOp (Add ty) [x, y] = binOp ty "+" x y
 rustOp (Sub ty) [x, y] = binOp ty "-" x y
@@ -146,6 +152,11 @@ rustOp (Mod ty) [x, y] = binOp ty "%" x y
 rustOp (Neg ty) [x] = App (RefUN (UN "-")) [x]
 rustOp (ShiftL ty) [x, y] = binOp ty "<<" x y
 rustOp (ShiftR ty) [x, y] = binOp ty ">>" x y
+rustOp (LT ty) [x, y] = boolBinOp ty "<" x y
+rustOp (LTE ty) [x, y] = boolBinOp ty "<=" x y
+rustOp (EQ ty) [x, y] = boolBinOp ty "==" x y
+rustOp (GTE ty) [x, y] = boolBinOp ty ">=" x y
+rustOp (GT ty) [x, y] = boolBinOp ty ">" x y
 rustOp StrLength [x] = App (RefUN (UN "idris_rts_str_length")) [x]
 rustOp StrHead [x] = App (RefUN (UN "idris_rts_str_head")) [x]
 rustOp StrTail [x] = App (RefUN (UN "idris_rts_str_tail")) [x]
