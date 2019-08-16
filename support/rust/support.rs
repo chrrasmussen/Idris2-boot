@@ -4,6 +4,7 @@
 
 // extern crate num_bigint;
 
+use std::convert::TryFrom;
 use std::str::FromStr;
 use std::fmt;
 use std::sync::Arc;
@@ -70,9 +71,49 @@ impl fmt::Debug for IdrisValue {
     }
 }
 
+
+// STRING
+
+// TODO: Do these String functions return a reference to the original String values? Should they make a clone instead?
+// TODO: These functions operate on codepoints instead of graphemes.
+
+fn idris_rts_str_length(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_str().chars().count() as i64))
+}
+
+fn idris_rts_str_head(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Char(x.unwrap_str().chars().next().unwrap()))
+}
+
+fn idris_rts_str_tail(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Str(x.unwrap_str().chars().into_iter().skip(1).collect()))
+}
+
+fn idris_rts_str_index(x: Arc<IdrisValue>, index: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    let i = usize::try_from(*index.unwrap_int()).unwrap();
+    Arc::new(Char(x.unwrap_str().chars().nth(i).unwrap()))
+}
+
+fn idris_rts_str_cons(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Str(format!("{}{}", x.unwrap_char(), y.unwrap_str())))
+}
+
 fn idris_rts_str_append(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
     Arc::new(Str(format!("{}{}", x.unwrap_str(), y.unwrap_str())))
 }
+
+fn idris_rts_str_reverse(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Str(x.unwrap_str().chars().rev().collect()))
+}
+
+fn idris_rts_str_substr(offset: Arc<IdrisValue>, length: Arc<IdrisValue>, x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    let o = usize::try_from(*offset.unwrap_int()).unwrap();
+    let l = usize::try_from(*length.unwrap_int()).unwrap();
+    Arc::new(Str(x.unwrap_str().chars().into_iter().skip(o).take(l).collect()))
+}
+
+
+// IO
 
 fn idris_rts_put_str(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
     print!("{}", x.unwrap_str());
