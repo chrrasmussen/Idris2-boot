@@ -142,9 +142,24 @@ rustOp (Add ty) [x, y] = binOp ty "+" x y
 rustOp (Sub ty) [x, y] = binOp ty "-" x y
 rustOp (Mul ty) [x, y] = binOp ty "*" x y
 rustOp (Div ty) [x, y] = binOp ty "/" x y
+rustOp (Mod ty) [x, y] = binOp ty "%" x y
+rustOp (Neg ty) [x] = App (RefUN (UN "-")) [x]
+rustOp (ShiftL ty) [x, y] = binOp ty "<<" x y
+rustOp (ShiftR ty) [x, y] = binOp ty ">>" x y
+rustOp StrLength [x] = App (RefUN (UN "idris_rts_str_length")) [x]
+rustOp StrHead [x] = App (RefUN (UN "idris_rts_str_head")) [x]
+rustOp StrTail [x] = App (RefUN (UN "idris_rts_str_tail")) [x]
+rustOp StrIndex [x, i] = App (RefUN (UN "idris_rts_str_index")) [x, i]
+rustOp StrCons [x, y] = App (RefUN (UN "idris_rts_str_cons")) [x, y]
 rustOp StrAppend [x, y] = App (RefUN (UN "idris_rts_str_append")) [x, y]
--- TODO: Add missing operators
-rustOp op _ = Crash ("Unknown operator " ++ show op)
+rustOp StrReverse [x] = App (RefUN (UN "idris_rts_str_reverse")) [x]
+rustOp StrSubstr [x, y, z] = App (RefUN (UN "idris_rts_str_substr")) [x, y, z]
+
+rustOp (Cast from to) [x] = Crash ("Invalid cast " ++ show from ++ "->" ++ show to)
+
+rustOp BelieveMe [_, _, x] = x
+
+rustOp op _ = Crash ("Unknown operator " ++ show op) -- TODO: Remove this
 
 mutual
   -- oops, no traverse for Vect in Core
