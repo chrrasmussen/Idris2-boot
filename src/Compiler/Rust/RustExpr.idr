@@ -44,6 +44,7 @@ mutual
     BinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
     ConCase : RustExpr -> List RustConAlt -> Maybe RustExpr -> RustExpr
     ConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
+    StrConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
     Erased : RustExpr
     Crash : String -> RustExpr
 
@@ -102,6 +103,9 @@ genRustMNIndex : RustMN -> Maybe Nat -> String
 genRustMNIndex mn Nothing = genRustMN mn
 genRustMNIndex mn (Just index) = genRustMN mn ++ "_" ++ show index
 
+genStringLiteral : String -> String
+genStringLiteral str = "\"" ++ str ++ "\"" -- TODO: Does not handle Unicode characters
+
 genConstant : RustConstant -> String
 genConstant (CInt x) = "Int(" ++ show x ++ ")"
 genConstant (CInteger x) = "Int(" ++ show x ++ ")"
@@ -111,7 +115,7 @@ genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
   where
     toHex : Char -> String
     toHex c = substr 2 6 (b32ToHexString (fromInteger (cast (ord c))))
-genConstant (CStr x) = "Str(\"" ++ x ++ "\".to_string())" -- TODO: Does not handle Unicode characters
+genConstant (CStr x) = "Str(" ++ genStringLiteral x ++ ".to_string())"
 genConstant CWorld = "World"
 
 repeatClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
@@ -156,6 +160,12 @@ mutual
   genConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) String
   genConstAlt (MkConstAlt constant scope) =
     pure $ genConstant constant ++ " => { " ++ !(genExpr scope) ++ " }"
+
+  genStrConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) String
+  genStrConstAlt (MkConstAlt (CStr str) scope) =
+    pure $ genStringLiteral str ++ " => { " ++ !(genExpr scope) ++ " }"
+  genStrConstAlt (MkConstAlt _ scope) =
+    pure $ "_ => panic!(\"Expected CStr in ConstAlt\")"
 
   genAltDef : Maybe RustExpr -> State (SortedMap RustMN Nat) (List String)
   genAltDef Nothing = pure $ []
@@ -213,6 +223,12 @@ mutual
     outDef <- genAltDef def
     let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
     pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
+  genExpr (StrConstCase expr alts def) = do
+    outExpr <- genExpr expr
+    outAlts <- traverse genStrConstAlt alts
+    outDef <- genAltDef def
+    let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
+    pure $ "match " ++ outExpr ++ ".unwrap_str().as_ref() { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
   genExpr Erased = pure $ "Arc::new(Erased)"
   genExpr (Crash msg) = pure $ "{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }"
 

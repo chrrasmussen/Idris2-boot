@@ -205,7 +205,9 @@ mutual
     outExpr <- rustExp i vs expr
     outAlts <- traverse (toRustConstAlt i vs) alts
     outDef <- maybe (pure Nothing) (\d => pure (Just !(rustExp i vs d))) def
-    pure $ ConstCase outExpr outAlts outDef
+    case head' outAlts of
+      Just (MkConstAlt (CStr _) _) => pure $ StrConstCase outExpr outAlts outDef
+      _ => pure $ ConstCase outExpr outAlts outDef
   where
     toRustConstAlt : Int -> SVars vars -> CConstAlt vars -> Core RustConstAlt
     toRustConstAlt i vs (MkConstAlt constant scope) = do
