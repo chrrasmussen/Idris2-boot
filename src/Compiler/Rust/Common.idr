@@ -155,24 +155,24 @@ rustOp StrAppend [x, y] = App (RefUN (UN "idris_rts_str_append")) [x, y]
 rustOp StrReverse [x] = App (RefUN (UN "idris_rts_str_reverse")) [x]
 rustOp StrSubstr [x, y, z] = App (RefUN (UN "idris_rts_str_substr")) [x, y, z]
 
-rustOp (Cast IntegerType IntType) [x] = App (RefUN (UN "idris_rts_integer_to_int")) [x]
-rustOp (Cast IntegerType DoubleType) [x] = App (RefUN (UN "idris_rts_integer_to_double")) [x]
-rustOp (Cast IntegerType StringType) [x] = App (RefUN (UN "idris_rts_integer_to_str")) [x]
+rustOp (Cast IntegerType IntType) [x] = x -- TODO: App (RefUN (UN "idris_rts_integer_to_int")) [x]
+rustOp (Cast IntegerType DoubleType) [x] = App (RefUN (UN "idris_rts_int_to_double")) [x] -- TODO: `integer_to`
+rustOp (Cast IntegerType StringType) [x] = App (RefUN (UN "idris_rts_int_to_str")) [x] -- TODO: `integer_to`
 
-rustOp (Cast IntType IntegerType) [x] = App (RefUN (UN "idris_rts_int_to_integer")) [x]
+rustOp (Cast IntType IntegerType) [x] = x -- TODO: App (RefUN (UN "idris_rts_int_to_int")) [x]
 rustOp (Cast IntType DoubleType) [x] = App (RefUN (UN "idris_rts_int_to_double")) [x]
 rustOp (Cast IntType CharType) [x] = App (RefUN (UN "idris_rts_int_to_char")) [x]
 rustOp (Cast IntType StringType) [x] = App (RefUN (UN "idris_rts_int_to_str")) [x]
 
-rustOp (Cast DoubleType IntegerType) [x] = App (RefUN (UN "idris_rts_double_to_integer")) [x]
+rustOp (Cast DoubleType IntegerType) [x] = App (RefUN (UN "idris_rts_double_to_int")) [x] -- TODO: `to_integer`
 rustOp (Cast DoubleType IntType) [x] = App (RefUN (UN "idris_rts_double_to_int")) [x]
 rustOp (Cast DoubleType StringType) [x] = App (RefUN (UN "idris_rts_double_to_str")) [x]
 
-rustOp (Cast CharType IntegerType) [x] = App (RefUN (UN "idris_rts_char_to_integer")) [x]
+rustOp (Cast CharType IntegerType) [x] = App (RefUN (UN "idris_rts_char_to_int")) [x] -- TODO: `to_integer`
 rustOp (Cast CharType IntType) [x] = App (RefUN (UN "idris_rts_char_to_int")) [x]
 rustOp (Cast CharType StringType) [x] = App (RefUN (UN "idris_rts_char_to_str")) [x]
 
-rustOp (Cast StringType IntegerType) [x] = App (RefUN (UN "idris_rts_str_to_integer")) [x]
+rustOp (Cast StringType IntegerType) [x] = App (RefUN (UN "idris_rts_str_to_int")) [x] -- TODO: `to_integer`
 rustOp (Cast StringType IntType) [x] = App (RefUN (UN "idris_rts_str_to_int")) [x]
 rustOp (Cast StringType DoubleType) [x] = App (RefUN (UN "idris_rts_str_to_double")) [x]
 
