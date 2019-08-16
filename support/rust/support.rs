@@ -5,11 +5,14 @@
 // extern crate num_bigint;
 
 use std::convert::TryFrom;
+use std::char;
 use std::str::FromStr;
 use std::fmt;
 use std::sync::Arc;
 use std::io::{self, BufRead};
 // use num_bigint::BigInt;
+// use num_traits::Zero;
+// use num_traits::cast::{FromPrimitive, ToPrimitive};
 
 use IdrisValue::*;
 
@@ -110,6 +113,77 @@ pub fn idris_rts_str_substr(offset: Arc<IdrisValue>, length: Arc<IdrisValue>, x:
     let o = usize::try_from(*offset.unwrap_int()).unwrap();
     let l = usize::try_from(*length.unwrap_int()).unwrap();
     Arc::new(Str(x.unwrap_str().chars().into_iter().skip(o).take(l).collect()))
+}
+
+
+// CASTS
+
+// pub fn idris_rts_integer_to_int(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+//     Arc::new(Int(x.unwrap_integer().to_i64().unwrap_or(0)))
+// }
+
+// pub fn idris_rts_integer_to_double(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+//     Arc::new(Double(x.unwrap_integer().to_f64().unwrap_or(0.0)))
+// }
+
+// pub fn idris_rts_integer_to_string(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+//     Arc::new(Str(x.unwrap_integer().to_string()))
+// }
+
+
+// pub fn idris_rts_int_to_integer(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+//     Arc::new(Integer(FromPrimitive::from_i64(*x.unwrap_int()).unwrap_or(Zero::zero())))
+// }
+
+pub fn idris_rts_int_to_double(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Double(*x.unwrap_int() as f64))
+}
+
+pub fn idris_rts_int_to_char(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Char(char::from_u32(*x.unwrap_int() as u32).unwrap_or('�')))
+}
+
+pub fn idris_rts_int_to_str(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Str(x.unwrap_int().to_string()))
+}
+
+
+// pub fn idris_rts_double_to_integer(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+//     Arc::new(Integer(FromPrimitive::from_f64(*x.unwrap_double()).unwrap_or(Zero::zero())))
+// }
+
+pub fn idris_rts_double_to_int(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(*x.unwrap_double() as i64))
+}
+
+pub fn idris_rts_double_to_str(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Str(x.unwrap_double().to_string()))
+}
+
+
+// pub fn idris_rts_char_to_integer(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+//     Arc::new(Integer(FromPrimitive::from_u32(*x.unwrap_char() as u32).unwrap_or(Zero::zero())))
+// }
+
+pub fn idris_rts_char_to_int(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(*x.unwrap_char() as i64))
+}
+
+pub fn idris_rts_char_to_str(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Str(x.unwrap_char().to_string()))
+}
+
+
+// pub fn idris_rts_str_to_integer(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+//     Arc::new(Integer(BigInt::from_str(x.unwrap_str()).unwrap_or(Zero::zero())))
+// }
+
+pub fn idris_rts_str_to_int(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(i64::from_str(x.unwrap_str()).unwrap_or(0)))
+}
+
+pub fn idris_rts_str_to_double(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Double(f64::from_str(x.unwrap_str()).unwrap_or(0.0)))
 }
 
 
