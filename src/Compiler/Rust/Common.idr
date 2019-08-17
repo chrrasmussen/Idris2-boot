@@ -228,8 +228,10 @@ mutual
     pure $ rustOp op !(rustArgs i vs args)
   rustExp i vs (CExtPrim fc p args) =
     rustExtPrim i vs (toPrim p) args
-  rustExp i vs (CForce fc t) = pure $ Crash "CForce not implemented"
-  rustExp i vs (CDelay fc t) = pure $ Crash "CDelay not implemented"
+  rustExp i vs (CForce fc t) =
+    pure $ RForce !(rustExp i vs t)
+  rustExp i vs (CDelay fc t) =
+    pure $ RDelay !(rustExp i vs t)
   rustExp i vs (CConCase fc expr alts def) = do
     outExpr <- rustExp i vs expr
     outAlts <- traverse (toRustConAlt i vs) alts

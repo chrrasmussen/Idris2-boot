@@ -46,6 +46,8 @@ mutual
     ConCase : RustExpr -> List RustConAlt -> Maybe RustExpr -> RustExpr
     ConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
     StrConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
+    RDelay : RustExpr -> RustExpr
+    RForce : RustExpr -> RustExpr
     Erased : RustExpr
     Crash : String -> RustExpr
 
@@ -118,6 +120,13 @@ genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
     toHex c = substr 2 6 (b32ToHexString (fromInteger (cast (ord c))))
 genConstant (CStr x) = "Str(" ++ genStringLiteral x ++ ".to_string())"
 genConstant CWorld = "World"
+
+repeatAllClones : SortedMap RustMN Nat -> List (String, String)
+repeatAllClones usedIds = do
+  (n, count) <- toList usedIds
+  index <- [0..count]
+  let varName = genRustMNIndex n (if count >= 1 then Just (index `minus` 1) else Nothing)
+  pure (varName, varName)
 
 repeatClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
 repeatClones keepIds usedIds = do
@@ -233,6 +242,14 @@ mutual
     outDef <- genAltDef def
     let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
     pure $ "match " ++ outExpr ++ ".unwrap_str().as_ref() { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
+  genExpr (RDelay scope) = do
+    innerScope <- genExpr scope
+    usedIds <- get
+    let previousClones = repeatAllClones usedIds
+    let newScope = genClones previousClones innerScope
+    pure $ "Arc::new(Delay(Box::new(move || {" ++ newScope ++ "})))"
+  genExpr (RForce scope) = do
+    pure $ "(" ++ !(genExpr scope) ++ ".unwrap_delay())()"
   genExpr Erased = pure $ "Arc::new(Erased)"
   genExpr (Crash msg) = pure $ "{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }"
 

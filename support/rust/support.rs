@@ -23,6 +23,7 @@ pub enum IdrisValue {
     Double(f64),
     Str(String),
     Lambda(Box<Fn(Arc<IdrisValue>) -> Arc<IdrisValue>>),
+    Delay(Box<Fn() -> Arc<IdrisValue>>),
     DataCon { tag: u32, args: Vec<Arc<IdrisValue>> },
     Erased,
     World,
@@ -53,6 +54,10 @@ impl IdrisValue {
         if let Lambda(x) = self { x } else { panic!("Expected IdrisValue::Lambda") }
     }
 
+    pub fn unwrap_delay(&self) -> &Box<Fn() -> Arc<IdrisValue>> {
+        if let Delay(x) = self { x } else { panic!("Expected IdrisValue::Delay") }
+    }
+
     pub fn unwrap_data_con(&self) -> (&u32, &Vec<Arc<IdrisValue>>) {
         if let DataCon { tag, args } = self { (tag, args) } else { panic!("Expected IdrisValue::DataCon") }
     }
@@ -67,6 +72,7 @@ impl fmt::Debug for IdrisValue {
             Double(x) => write!(f, "Double({})", x),
             Str(x) => write!(f, "Str({})", x),
             Lambda(_) => write!(f, "Lambda(_)"),
+            Delay(_) => write!(f, "Delay(_)"),
             DataCon { tag, args } => write!(f, "DataCon {{ tag: {}, args: {:?} }}", tag, args),
             Erased => write!(f, "Erased"),
             World => write!(f, "World"),
