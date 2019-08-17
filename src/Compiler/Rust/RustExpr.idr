@@ -34,22 +34,22 @@ data RustType = TInt | TInteger | TDouble | TChar | TStr
 mutual
   public export
   data RustExpr : Type where
-    PrimVal : RustConstant -> RustExpr
-    RefUN : RustUN -> RustExpr
-    RefMN : RustMN -> RustExpr
-    Let : RustMN -> RustExpr -> RustExpr -> RustExpr
-    Lam : RustMN -> RustExpr -> RustExpr
-    App : RustExpr -> List RustExpr -> RustExpr
-    Con : Int -> List RustExpr -> RustExpr
-    BinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
-    BoolBinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
-    ConCase : RustExpr -> List RustConAlt -> Maybe RustExpr -> RustExpr
-    ConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
-    StrConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
+    RPrimVal : RustConstant -> RustExpr
+    RRefUN : RustUN -> RustExpr
+    RRefMN : RustMN -> RustExpr
+    RLet : RustMN -> RustExpr -> RustExpr -> RustExpr
+    RLam : RustMN -> RustExpr -> RustExpr
+    RApp : RustExpr -> List RustExpr -> RustExpr
+    RCon : Int -> List RustExpr -> RustExpr
+    RBinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
+    RBoolBinOp : RustType -> String -> RustExpr -> RustExpr -> RustExpr
+    RConCase : RustExpr -> List RustConAlt -> Maybe RustExpr -> RustExpr
+    RConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
+    RStrConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
     RDelay : RustExpr -> RustExpr
     RForce : RustExpr -> RustExpr
-    Erased : RustExpr
-    Crash : String -> RustExpr
+    RErased : RustExpr
+    RCrash : String -> RustExpr
 
   public export
   data RustConAlt : Type where
@@ -183,9 +183,9 @@ mutual
     pure $ ["_ => " ++ !(genExpr def)]
 
   genExpr : RustExpr -> State (SortedMap RustMN Nat) String
-  genExpr (PrimVal val) = pure $ "Arc::new(" ++ genConstant val ++ ")"
-  genExpr (RefUN n) = pure $ genRustUN n
-  genExpr (RefMN n) = do
+  genExpr (RPrimVal val) = pure $ "Arc::new(" ++ genConstant val ++ ")"
+  genExpr (RRefUN n) = pure $ genRustUN n
+  genExpr (RRefMN n) = do
     usedIds <- get
     let Just nextIndex = SortedMap.lookup n usedIds
       | Nothing => do
@@ -193,14 +193,14 @@ mutual
         pure $ wrapClone (genRustMN n)
     put $ insert n (nextIndex + 1) usedIds
     pure $ wrapClone (genRustMNIndex n (Just nextIndex))
-  genExpr (Let n val scope) = do
+  genExpr (RLet n val scope) = do
     innerScope <- genExpr scope
     usedIds <- get
     let newClones = freshClones [n] usedIds
     let newScope = genClones newClones innerScope
     put (deleteArgs [n] usedIds)
     pure $ wrapLet (genRustMN n) !(genExpr val) newScope
-  genExpr (Lam n@(MN index) scope) = do
+  genExpr (RLam n@(MN index) scope) = do
     innerScope <- genExpr scope
     usedIds <- get
     let previousClones = repeatClones (delete n (map MN [0..(index `minus` 1)])) usedIds
@@ -208,35 +208,35 @@ mutual
     let newScope = genClones (previousClones ++ newClones) innerScope
     put (deleteArgs [n] usedIds)
     pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustMN n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
-  genExpr (App expr args) = do
+  genExpr (RApp expr args) = do
     outArgs <- traverse genExpr args
     outExpr <- genExpr expr
     let calledExpr = case expr of
-      RefUN (UN fnName) => fnName
+      RRefUN (UN fnName) => fnName
       _ => "(" ++ outExpr ++ ".unwrap_lambda())"
     pure $ calledExpr ++ "(" ++ showSep ", " outArgs ++ ")"
-  genExpr (Con tag args) = do
+  genExpr (RCon tag args) = do
     outArgs <- traverse genExpr args
     pure $ "Arc::new(DataCon { tag: " ++ show tag ++ ", args: vec![" ++ showSep ", " outArgs ++ "]})"
-  genExpr (BinOp ty fnName val1 val2) = do
+  genExpr (RBinOp ty fnName val1 val2) = do
     let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
     pure $ "Arc::new(" ++ dataConstructor ty ++ "(" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ "))"
-  genExpr (BoolBinOp ty fnName val1 val2) = do
+  genExpr (RBoolBinOp ty fnName val1 val2) = do
     let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
     pure $ "Arc::new(Int((" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ ") as i64))"
-  genExpr (ConCase expr alts def) = do
+  genExpr (RConCase expr alts def) = do
     outExpr <- genExpr expr
     outAlts <- traverse genConAlt alts
     outDef <- genAltDef def
     let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
     pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
-  genExpr (ConstCase expr alts def) = do
+  genExpr (RConstCase expr alts def) = do
     outExpr <- genExpr expr
     outAlts <- traverse genConstAlt alts
     outDef <- genAltDef def
     let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
     pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
-  genExpr (StrConstCase expr alts def) = do
+  genExpr (RStrConstCase expr alts def) = do
     outExpr <- genExpr expr
     outAlts <- traverse genStrConstAlt alts
     outDef <- genAltDef def
@@ -250,8 +250,8 @@ mutual
     pure $ "Arc::new(Delay(Box::new(move || {" ++ newScope ++ "})))"
   genExpr (RForce scope) = do
     pure $ "(" ++ !(genExpr scope) ++ ".unwrap_delay())()"
-  genExpr Erased = pure $ "Arc::new(Erased)"
-  genExpr (Crash msg) = pure $ "{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }"
+  genExpr RErased = pure $ "Arc::new(Erased)"
+  genExpr (RCrash msg) = pure $ "{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }"
 
 export
 genExprNoArgs : RustExpr -> String

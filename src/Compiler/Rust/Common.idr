@@ -107,7 +107,7 @@ toPrim pn@(NS _ n)
 toPrim pn = Unknown pn
 
 rustWorld : RustExpr -> RustExpr
-rustWorld res = Con 0 [Erased, res, PrimVal CWorld] -- MkIORes
+rustWorld res = RCon 0 [RErased, res, RPrimVal CWorld] -- MkIORes
 
 rustConstant : Constant -> RustConstant
 rustConstant (I x) = CInt x
@@ -134,14 +134,14 @@ constantToRustType _ = Nothing
 binOp : Constant -> String -> RustExpr -> RustExpr -> RustExpr
 binOp constant fnName x y =
   let Just ty = constantToRustType constant
-    | Crash "Unknown type for binary operator"
-  in BinOp ty fnName x y
+    | RCrash "Unknown type for binary operator"
+  in RBinOp ty fnName x y
 
 boolBinOp : Constant -> String -> RustExpr -> RustExpr -> RustExpr
 boolBinOp constant fnName x y =
   let Just ty = constantToRustType constant
-    | Crash "Unknown type for binary operator"
-  in BoolBinOp ty fnName x y
+    | RCrash "Unknown type for binary operator"
+  in RBoolBinOp ty fnName x y
 
 rustOp : PrimFn arity -> Vect arity RustExpr -> RustExpr
 rustOp (Add ty) [x, y] = binOp ty "+" x y
@@ -149,7 +149,7 @@ rustOp (Sub ty) [x, y] = binOp ty "-" x y
 rustOp (Mul ty) [x, y] = binOp ty "*" x y
 rustOp (Div ty) [x, y] = binOp ty "/" x y
 rustOp (Mod ty) [x, y] = binOp ty "%" x y
-rustOp (Neg ty) [x] = App (RefUN (UN "-")) [x]
+rustOp (Neg ty) [x] = RApp (RRefUN (UN "-")) [x]
 rustOp (ShiftL ty) [x, y] = binOp ty "<<" x y
 rustOp (ShiftR ty) [x, y] = binOp ty ">>" x y
 rustOp (LT ty) [x, y] = boolBinOp ty "<" x y
@@ -157,41 +157,41 @@ rustOp (LTE ty) [x, y] = boolBinOp ty "<=" x y
 rustOp (EQ ty) [x, y] = boolBinOp ty "==" x y
 rustOp (GTE ty) [x, y] = boolBinOp ty ">=" x y
 rustOp (GT ty) [x, y] = boolBinOp ty ">" x y
-rustOp StrLength [x] = App (RefUN (UN "idris_rts_str_length")) [x]
-rustOp StrHead [x] = App (RefUN (UN "idris_rts_str_head")) [x]
-rustOp StrTail [x] = App (RefUN (UN "idris_rts_str_tail")) [x]
-rustOp StrIndex [x, i] = App (RefUN (UN "idris_rts_str_index")) [x, i]
-rustOp StrCons [x, y] = App (RefUN (UN "idris_rts_str_cons")) [x, y]
-rustOp StrAppend [x, y] = App (RefUN (UN "idris_rts_str_append")) [x, y]
-rustOp StrReverse [x] = App (RefUN (UN "idris_rts_str_reverse")) [x]
-rustOp StrSubstr [x, y, z] = App (RefUN (UN "idris_rts_str_substr")) [x, y, z]
+rustOp StrLength [x] = RApp (RRefUN (UN "idris_rts_str_length")) [x]
+rustOp StrHead [x] = RApp (RRefUN (UN "idris_rts_str_head")) [x]
+rustOp StrTail [x] = RApp (RRefUN (UN "idris_rts_str_tail")) [x]
+rustOp StrIndex [x, i] = RApp (RRefUN (UN "idris_rts_str_index")) [x, i]
+rustOp StrCons [x, y] = RApp (RRefUN (UN "idris_rts_str_cons")) [x, y]
+rustOp StrAppend [x, y] = RApp (RRefUN (UN "idris_rts_str_append")) [x, y]
+rustOp StrReverse [x] = RApp (RRefUN (UN "idris_rts_str_reverse")) [x]
+rustOp StrSubstr [x, y, z] = RApp (RRefUN (UN "idris_rts_str_substr")) [x, y, z]
 
-rustOp (Cast IntegerType IntType) [x] = x -- TODO: App (RefUN (UN "idris_rts_integer_to_int")) [x]
-rustOp (Cast IntegerType DoubleType) [x] = App (RefUN (UN "idris_rts_int_to_double")) [x] -- TODO: `integer_to`
-rustOp (Cast IntegerType StringType) [x] = App (RefUN (UN "idris_rts_int_to_str")) [x] -- TODO: `integer_to`
+rustOp (Cast IntegerType IntType) [x] = x -- TODO: RApp (RRefUN (UN "idris_rts_integer_to_int")) [x]
+rustOp (Cast IntegerType DoubleType) [x] = RApp (RRefUN (UN "idris_rts_int_to_double")) [x] -- TODO: `integer_to`
+rustOp (Cast IntegerType StringType) [x] = RApp (RRefUN (UN "idris_rts_int_to_str")) [x] -- TODO: `integer_to`
 
-rustOp (Cast IntType IntegerType) [x] = x -- TODO: App (RefUN (UN "idris_rts_int_to_int")) [x]
-rustOp (Cast IntType DoubleType) [x] = App (RefUN (UN "idris_rts_int_to_double")) [x]
-rustOp (Cast IntType CharType) [x] = App (RefUN (UN "idris_rts_int_to_char")) [x]
-rustOp (Cast IntType StringType) [x] = App (RefUN (UN "idris_rts_int_to_str")) [x]
+rustOp (Cast IntType IntegerType) [x] = x -- TODO: RApp (RRefUN (UN "idris_rts_int_to_int")) [x]
+rustOp (Cast IntType DoubleType) [x] = RApp (RRefUN (UN "idris_rts_int_to_double")) [x]
+rustOp (Cast IntType CharType) [x] = RApp (RRefUN (UN "idris_rts_int_to_char")) [x]
+rustOp (Cast IntType StringType) [x] = RApp (RRefUN (UN "idris_rts_int_to_str")) [x]
 
-rustOp (Cast DoubleType IntegerType) [x] = App (RefUN (UN "idris_rts_double_to_int")) [x] -- TODO: `to_integer`
-rustOp (Cast DoubleType IntType) [x] = App (RefUN (UN "idris_rts_double_to_int")) [x]
-rustOp (Cast DoubleType StringType) [x] = App (RefUN (UN "idris_rts_double_to_str")) [x]
+rustOp (Cast DoubleType IntegerType) [x] = RApp (RRefUN (UN "idris_rts_double_to_int")) [x] -- TODO: `to_integer`
+rustOp (Cast DoubleType IntType) [x] = RApp (RRefUN (UN "idris_rts_double_to_int")) [x]
+rustOp (Cast DoubleType StringType) [x] = RApp (RRefUN (UN "idris_rts_double_to_str")) [x]
 
-rustOp (Cast CharType IntegerType) [x] = App (RefUN (UN "idris_rts_char_to_int")) [x] -- TODO: `to_integer`
-rustOp (Cast CharType IntType) [x] = App (RefUN (UN "idris_rts_char_to_int")) [x]
-rustOp (Cast CharType StringType) [x] = App (RefUN (UN "idris_rts_char_to_str")) [x]
+rustOp (Cast CharType IntegerType) [x] = RApp (RRefUN (UN "idris_rts_char_to_int")) [x] -- TODO: `to_integer`
+rustOp (Cast CharType IntType) [x] = RApp (RRefUN (UN "idris_rts_char_to_int")) [x]
+rustOp (Cast CharType StringType) [x] = RApp (RRefUN (UN "idris_rts_char_to_str")) [x]
 
-rustOp (Cast StringType IntegerType) [x] = App (RefUN (UN "idris_rts_str_to_int")) [x] -- TODO: `to_integer`
-rustOp (Cast StringType IntType) [x] = App (RefUN (UN "idris_rts_str_to_int")) [x]
-rustOp (Cast StringType DoubleType) [x] = App (RefUN (UN "idris_rts_str_to_double")) [x]
+rustOp (Cast StringType IntegerType) [x] = RApp (RRefUN (UN "idris_rts_str_to_int")) [x] -- TODO: `to_integer`
+rustOp (Cast StringType IntType) [x] = RApp (RRefUN (UN "idris_rts_str_to_int")) [x]
+rustOp (Cast StringType DoubleType) [x] = RApp (RRefUN (UN "idris_rts_str_to_double")) [x]
 
-rustOp (Cast from to) [x] = Crash ("Invalid cast " ++ show from ++ "->" ++ show to)
+rustOp (Cast from to) [x] = RCrash ("Invalid cast " ++ show from ++ "->" ++ show to)
 
 rustOp BelieveMe [_, _, x] = x
 
-rustOp op _ = Crash ("Unknown operator " ++ show op) -- TODO: Remove this
+rustOp op _ = RCrash ("Unknown operator " ++ show op) -- TODO: Remove this
 
 mutual
   -- oops, no traverse for Vect in Core
@@ -207,23 +207,23 @@ mutual
   rustExp : Int -> SVars vars -> CExp vars -> Core RustExpr
   rustExp i vs (CLocal fc el) = do
     index <- expectMN (lookupSVar el vs)
-    pure $ RefMN (MN (toNat index))
-  rustExp i vs (CRef fc n) = pure $ RefUN (UN (rustName n))
+    pure $ RRefMN (MN (toNat index))
+  rustExp i vs (CRef fc n) = pure $ RRefUN (UN (rustName n))
   rustExp i vs (CLam fc x sc) = do
     let vs' = extendSVars [x] vs
     sc' <- rustExp i vs' sc
     index <- expectMN (lookupSVar First vs')
-    pure $ Lam (MN (toNat index)) sc'
+    pure $ RLam (MN (toNat index)) sc'
   rustExp i vs (CLet fc x val sc) = do
     let vs' = extendSVars [x] vs
     val' <- rustExp i vs val
     sc' <- rustExp i vs' sc
     index <- expectMN (lookupSVar First vs')
-    pure $ Let (MN (toNat index)) val' sc'
+    pure $ RLet (MN (toNat index)) val' sc'
   rustExp i vs (CApp fc x args) =
-    pure $ App !(rustExp i vs x) !(traverse (rustExp i vs) args)
+    pure $ RApp !(rustExp i vs x) !(traverse (rustExp i vs) args)
   rustExp i vs (CCon fc x tag args) =
-    pure $ Con tag!(traverse (rustExp i vs) args)
+    pure $ RCon tag!(traverse (rustExp i vs) args)
   rustExp i vs (COp fc op args) =
     pure $ rustOp op !(rustArgs i vs args)
   rustExp i vs (CExtPrim fc p args) =
@@ -236,7 +236,7 @@ mutual
     outExpr <- rustExp i vs expr
     outAlts <- traverse (toRustConAlt i vs) alts
     outDef <- maybe (pure Nothing) (\d => pure (Just !(rustExp i vs d))) def
-    pure $ ConCase outExpr outAlts outDef
+    pure $ RConCase outExpr outAlts outDef
   where
     getNames : List Name -> SVars vars -> List Name
     getNames [] _ = []
@@ -255,23 +255,23 @@ mutual
     outAlts <- traverse (toRustConstAlt i vs) alts
     outDef <- maybe (pure Nothing) (\d => pure (Just !(rustExp i vs d))) def
     case head' outAlts of
-      Just (MkConstAlt (CStr _) _) => pure $ StrConstCase outExpr outAlts outDef
-      _ => pure $ ConstCase outExpr outAlts outDef
+      Just (MkConstAlt (CStr _) _) => pure $ RStrConstCase outExpr outAlts outDef
+      _ => pure $ RConstCase outExpr outAlts outDef
   where
     toRustConstAlt : Int -> SVars vars -> CConstAlt vars -> Core RustConstAlt
     toRustConstAlt i vs (MkConstAlt constant scope) = do
       outScope <- rustExp i vs scope
       pure $ MkConstAlt (rustConstant constant) outScope
   rustExp i vs (CPrimVal fc c) =
-    pure $ PrimVal (rustConstant c)
+    pure $ RPrimVal (rustConstant c)
   rustExp i vs (CErased fc) =
-    pure $ Erased
+    pure $ RErased
   rustExp i vs (CCrash fc msg) =
-    pure $ Crash msg
+    pure $ RCrash msg
 
   rustExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core RustExpr
-  rustExtPrim i vs PutStr [arg, world] = pure $ rustWorld $ App (RefUN (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
-  rustExtPrim i vs GetStr [world] = pure $ rustWorld $ App (RefUN (UN "idris_rts_get_str")) []
+  rustExtPrim i vs PutStr [arg, world] = pure $ rustWorld $ RApp (RRefUN (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
+  rustExtPrim i vs GetStr [world] = pure $ rustWorld $ RApp (RRefUN (UN "idris_rts_get_str")) []
   rustExtPrim i vs prim args = throw (InternalError ("Badly formed external primitive " ++ show prim ++ " " ++ show args))
 
 rustArgList : SVars ns -> List RustMN
