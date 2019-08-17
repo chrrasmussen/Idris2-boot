@@ -121,27 +121,16 @@ genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
 genConstant (CStr x) = "Str(" ++ genStringLiteral x ++ ".to_string())"
 genConstant CWorld = "World"
 
-repeatAllClones : SortedMap RustMN Nat -> List (String, String)
-repeatAllClones usedIds = do
-  (n, count) <- toList usedIds
-  index <- [0..count]
-  let varName = genRustMNIndex n (if count >= 1 then Just (index `minus` 1) else Nothing)
-  pure (varName, varName)
-
-repeatClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
-repeatClones keepIds usedIds = do
-  (n, count) <- toList usedIds
-  guard (n `elem` keepIds)
-  index <- [0..count]
-  let varName = genRustMNIndex n (if count >= 1 then Just (index `minus` 1) else Nothing)
-  pure (varName, varName)
-
 freshClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
 freshClones keepIds usedIds = do
   (n, count) <- toList usedIds
   guard $ (n `elem` keepIds) && (count >= 1)
   index <- [0..(count `minus` 1)]
   pure (genRustMN n, genRustMNIndex n (Just index))
+
+cloneRefs : List String -> List (String, String)
+cloneRefs [] = []
+cloneRefs (x :: xs) = (x, x) :: cloneRefs xs
 
 genClones : List (String, String) -> String -> String
 genClones [] scope = scope
@@ -153,116 +142,143 @@ deleteArgs [] usedIds = usedIds
 deleteArgs (x :: xs) usedIds = deleteArgs xs (SortedMap.delete x usedIds)
 
 mutual
-  genConAlt : RustConAlt -> State (SortedMap RustMN Nat) String
+  genConAlt : RustConAlt -> State (SortedMap RustMN Nat) (String, List String)
   genConAlt (MkConAlt tag args scope) = do
-    innerScope <- genExpr scope
+    (innerScope, scopeRefs) <- genExpr scope
+    let assignments = map genAssignment (zip [0..(length args `minus` 1)] args)
     usedIds <- get
     let newClones = freshClones args usedIds
     let newScope = genClones newClones innerScope
     put (deleteArgs args usedIds)
-    let assignments = map genAssignment (zip [0..(length args `minus` 1)] args)
-    pure $ "DataCon { tag: " ++ show tag ++ ", ref args } => { " ++ showSep "; " (assignments ++ [newScope]) ++ " }"
+    let introducedVarNames = map genRustMN args
+    let subRefs = filter (\argRef => not (argRef `elem` introducedVarNames)) scopeRefs
+    pure $ ("DataCon { tag: " ++ show tag ++ ", ref args } => { " ++ showSep "; " (assignments ++ [newScope]) ++ " }", subRefs)
   where
     genAssignment : (Nat, RustMN) -> String
     genAssignment (index, name) =
       "let " ++ genRustMN name ++ " = Arc::clone(&args[" ++ show index ++ "])"
 
-  genConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) String
-  genConstAlt (MkConstAlt constant scope) =
-    pure $ genConstant constant ++ " => { " ++ !(genExpr scope) ++ " }"
+  genConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) (String, List String)
+  genConstAlt (MkConstAlt constant scope) = do
+    (innerScope, scopeRefs) <- genExpr scope
+    pure $ (genConstant constant ++ " => { " ++ innerScope ++ " }", scopeRefs)
 
-  genStrConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) String
-  genStrConstAlt (MkConstAlt (CStr str) scope) =
-    pure $ genStringLiteral str ++ " => { " ++ !(genExpr scope) ++ " }"
-  genStrConstAlt (MkConstAlt _ scope) =
-    pure $ "_ => panic!(\"Expected CStr in ConstAlt\")"
+  genStrConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) (String, List String)
+  genStrConstAlt (MkConstAlt (CStr str) scope) = do
+    (innerScope, scopeRefs) <- genExpr scope
+    pure $ (genStringLiteral str ++ " => { " ++ innerScope ++ " }", scopeRefs)
+  genStrConstAlt (MkConstAlt _ _) =
+    pure $ ("_ => panic!(\"Expected CStr in ConstAlt\")", [])
 
-  genAltDef : Maybe RustExpr -> State (SortedMap RustMN Nat) (List String)
-  genAltDef Nothing = pure $ []
-  genAltDef (Just def) =
-    pure $ ["_ => " ++ !(genExpr def)]
+  genAltDef : Maybe RustExpr -> State (SortedMap RustMN Nat) (List String, List String)
+  genAltDef Nothing = pure $ ([], [])
+  genAltDef (Just def) = do
+    (outExpr, exprRefs) <- genExpr def
+    pure $ (["_ => " ++ outExpr], exprRefs)
 
-  genExpr : RustExpr -> State (SortedMap RustMN Nat) String
-  genExpr (RPrimVal val) = pure $ "Arc::new(" ++ genConstant val ++ ")"
-  genExpr (RRefUN n) = pure $ genRustUN n
+  genExpr : RustExpr -> State (SortedMap RustMN Nat) (String, List String)
+  genExpr (RPrimVal val) = pure $ ("Arc::new(" ++ genConstant val ++ ")", [])
+  genExpr (RRefUN n) = pure $ (genRustUN n, [])
   genExpr (RRefMN n) = do
     usedIds <- get
     let Just nextIndex = SortedMap.lookup n usedIds
       | Nothing => do
         put $ insert n 0 usedIds
-        pure $ wrapClone (genRustMN n)
+        let refString = genRustMN n
+        pure $ (refString, [refString])
     put $ insert n (nextIndex + 1) usedIds
-    pure $ wrapClone (genRustMNIndex n (Just nextIndex))
+    let refString = genRustMNIndex n (Just nextIndex)
+    pure $ (refString, [refString])
   genExpr (RLet n val scope) = do
-    innerScope <- genExpr scope
+    (outValue, valueRefs) <- genExpr val
+    (outScope, scopeRefs) <- genExpr scope
     usedIds <- get
     let newClones = freshClones [n] usedIds
-    let newScope = genClones newClones innerScope
+    let newScope = genClones newClones outScope
     put (deleteArgs [n] usedIds)
-    pure $ wrapLet (genRustMN n) !(genExpr val) newScope
-  genExpr (RLam n@(MN index) scope) = do
-    innerScope <- genExpr scope
+    let introducedVarName = genRustMN n
+    let subRefs = valueRefs ++ filter (/= introducedVarName) scopeRefs
+    pure $ (wrapLet (genRustMN n) outValue newScope, subRefs)
+  genExpr (RLam n scope) = do
+    (innerScope, scopeRefs) <- genExpr scope
     usedIds <- get
-    let previousClones = repeatClones (delete n (map MN [0..(index `minus` 1)])) usedIds
+    let introducedVarName = genRustMN n
+    let subRefs = filter (/= introducedVarName) scopeRefs
+    let repeatClones = cloneRefs subRefs
     let newClones = freshClones [n] usedIds
-    let newScope = genClones (previousClones ++ newClones) innerScope
+    let newScope = genClones (repeatClones ++ newClones) innerScope
     put (deleteArgs [n] usedIds)
-    pure $ "Arc::new(Lambda(Box::new(move |" ++ genRustMN n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))"
+    pure $ ("Arc::new(Lambda(Box::new(move |" ++ genRustMN n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))", subRefs)
   genExpr (RApp expr args) = do
-    outArgs <- traverse genExpr args
-    outExpr <- genExpr expr
+    argsResult <- traverse genExpr args
+    (outExpr, exprRefs) <- genExpr expr
     let calledExpr = case expr of
       RRefUN (UN fnName) => fnName
       _ => "(" ++ outExpr ++ ".unwrap_lambda())"
-    pure $ calledExpr ++ "(" ++ showSep ", " outArgs ++ ")"
+    let outArgs = map fst argsResult
+    let subRefs = concat (map snd argsResult) ++ exprRefs
+    pure $ (calledExpr ++ "(" ++ showSep ", " outArgs ++ ")", subRefs)
   genExpr (RCon tag args) = do
-    outArgs <- traverse genExpr args
-    pure $ "Arc::new(DataCon { tag: " ++ show tag ++ ", args: vec![" ++ showSep ", " outArgs ++ "]})"
+    argsResult <- traverse genExpr args
+    let outArgs = map fst argsResult
+    let subRefs = concat (map snd argsResult)
+    pure $ ("Arc::new(DataCon { tag: " ++ show tag ++ ", args: vec![" ++ showSep ", " outArgs ++ "]})", subRefs)
   genExpr (RBinOp ty fnName val1 val2) = do
+    (outVal1, val1Refs) <- genExpr val1
+    (outVal2, val2Refs) <- genExpr val2
     let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
-    pure $ "Arc::new(" ++ dataConstructor ty ++ "(" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ "))"
+    let subRefs = val1Refs ++ val2Refs
+    pure $ ("Arc::new(" ++ dataConstructor ty ++ "(" ++ outVal1 ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ outVal2 ++ callUnwrapFn ++ "))", subRefs)
   genExpr (RBoolBinOp ty fnName val1 val2) = do
+    (outVal1, val1Refs) <- genExpr val1
+    (outVal2, val2Refs) <- genExpr val2
     let callUnwrapFn = ".unwrap_" ++ unwrapName ty ++ "()"
-    pure $ "Arc::new(Int((" ++ !(genExpr val1) ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ !(genExpr val2) ++ callUnwrapFn ++ ") as i64))"
+    let subRefs = val1Refs ++ val2Refs
+    pure $ ("Arc::new(Int((" ++ outVal1 ++ callUnwrapFn ++ " " ++ fnName ++ " " ++ outVal2 ++ callUnwrapFn ++ ") as i64))", subRefs)
   genExpr (RConCase expr alts def) = do
-    outExpr <- genExpr expr
-    outAlts <- traverse genConAlt alts
-    outDef <- genAltDef def
+    (outExpr, exprRefs) <- genExpr expr
+    altsResult <- traverse genConAlt alts
+    let outAlts = map fst altsResult
+    (outDef, defRefs) <- genAltDef def
     let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
-    pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
+    let subRefs = exprRefs ++ concat (map snd altsResult) ++ defRefs
+    pure $ ("match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }", subRefs)
   genExpr (RConstCase expr alts def) = do
-    outExpr <- genExpr expr
-    outAlts <- traverse genConstAlt alts
-    outDef <- genAltDef def
+    (outExpr, exprRefs) <- genExpr expr
+    altsResult <- traverse genConstAlt alts
+    let outAlts = map fst altsResult
+    (outDef, defRefs) <- genAltDef def
     let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
-    pure $ "match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
+    let subRefs = exprRefs ++ concat (map snd altsResult) ++ defRefs
+    pure $ ("match *" ++ outExpr ++ " { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }", subRefs)
   genExpr (RStrConstCase expr alts def) = do
-    outExpr <- genExpr expr
-    outAlts <- traverse genStrConstAlt alts
-    outDef <- genAltDef def
+    (outExpr, exprRefs) <- genExpr expr
+    altsResult <- traverse genStrConstAlt alts
+    let outAlts = map fst altsResult
+    (outDef, defRefs) <- genAltDef def
     let catchAllCase = ["ref x => panic!(\"No matches for: {:?}\", x)"]
-    pure $ "match " ++ outExpr ++ ".unwrap_str().as_ref() { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }"
+    let subRefs = exprRefs ++ concat (map snd altsResult) ++ defRefs
+    pure $ ("match " ++ outExpr ++ ".unwrap_str().as_ref() { " ++ showSep ", " (outAlts ++ outDef ++ catchAllCase) ++ " }", subRefs)
   genExpr (RDelay scope) = do
-    innerScope <- genExpr scope
-    usedIds <- get
-    let previousClones = repeatAllClones usedIds
-    let newScope = genClones previousClones innerScope
-    pure $ "Arc::new(Delay(Box::new(move || {" ++ newScope ++ "})))"
+    (innerScope, scopeRefs) <- genExpr scope
+    let newScope = genClones (cloneRefs scopeRefs) innerScope
+    pure $ ("Arc::new(Delay(Box::new(move || { " ++ newScope ++ " })))", scopeRefs)
   genExpr (RForce scope) = do
-    pure $ "(" ++ !(genExpr scope) ++ ".unwrap_delay())()"
-  genExpr RErased = pure $ "Arc::new(Erased)"
-  genExpr (RCrash msg) = pure $ "{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }"
+    (innerScope, scopeRefs) <- genExpr scope
+    pure $ ("(" ++ innerScope ++ ".unwrap_delay())()", scopeRefs)
+  genExpr RErased = pure $ ("Arc::new(Erased)", [])
+  genExpr (RCrash msg) = pure $ ("{ let x: Arc<IdrisValue> = panic!(\"" ++ msg ++ "\"); x }", [])
 
 export
 genExprNoArgs : RustExpr -> String
 genExprNoArgs expr =
-  let (code, _) = State.runState (genExpr expr) empty
+  let ((code, refs), _) = State.runState (genExpr expr) empty
   in code
 
 export
 genDecl : RustDecl -> String
 genDecl (MkFun name args scope) = do
-    let (code, usedIds) = State.runState (genExpr scope) empty
+    let ((code, refs), usedIds) = State.runState (genExpr scope) empty
     let newClones = freshClones args usedIds
     let newScope = genClones newClones code
     "fn " ++ genRustUN name ++ "(" ++ showSep ", " (map showArg args) ++ ") -> Arc<IdrisValue> { " ++ newScope ++ " }\n"
