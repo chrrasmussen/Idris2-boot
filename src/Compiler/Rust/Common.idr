@@ -144,6 +144,14 @@ boolBinOp constant fnName x y =
   in RBoolBinOp ty fnName x y
 
 rustOp : PrimFn arity -> Vect arity RustExpr -> RustExpr
+rustOp (Add IntType) [x, y] = RApp (RRefUN (UN "idris_rts_int_add")) [x, y]
+rustOp (Sub IntType) [x, y] = RApp (RRefUN (UN "idris_rts_int_sub")) [x, y]
+rustOp (Mul IntType) [x, y] = RApp (RRefUN (UN "idris_rts_int_mul")) [x, y]
+rustOp (Div IntType) [x, y] = RApp (RRefUN (UN "idris_rts_int_div")) [x, y]
+rustOp (Mod IntType) [x, y] = RApp (RRefUN (UN "idris_rts_int_mod")) [x, y]
+rustOp (Neg IntType) [x] = RApp (RRefUN (UN "idris_rts_int_neg")) [x]
+rustOp (ShiftL IntType) [x, y] = RApp (RRefUN (UN "idris_rts_int_shl")) [x, y]
+rustOp (ShiftR IntType) [x, y] = RApp (RRefUN (UN "idris_rts_int_shr")) [x, y]
 rustOp (Add ty) [x, y] = binOp ty "+" x y
 rustOp (Sub ty) [x, y] = binOp ty "-" x y
 rustOp (Mul ty) [x, y] = binOp ty "*" x y

@@ -80,6 +80,40 @@ impl fmt::Debug for IdrisValue {
     }
 }
 
+// WRAPPING INT
+
+pub fn idris_rts_int_add(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_add(*y.unwrap_int())))
+}
+
+pub fn idris_rts_int_sub(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_sub(*y.unwrap_int())))
+}
+
+pub fn idris_rts_int_mul(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_mul(*y.unwrap_int())))
+}
+
+pub fn idris_rts_int_div(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_div(*y.unwrap_int())))
+}
+
+pub fn idris_rts_int_mod(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_rem(*y.unwrap_int())))
+}
+
+pub fn idris_rts_int_neg(x: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_neg()))
+}
+
+pub fn idris_rts_int_shl(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_shl(*y.unwrap_int() as u32)))
+}
+
+pub fn idris_rts_int_shr(x: Arc<IdrisValue>, y: Arc<IdrisValue>) -> Arc<IdrisValue> {
+    Arc::new(Int(x.unwrap_int().wrapping_shr(*y.unwrap_int() as u32)))
+}
+
 
 // STRING
 
