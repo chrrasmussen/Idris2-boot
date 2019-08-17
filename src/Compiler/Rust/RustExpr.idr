@@ -133,9 +133,10 @@ cloneRefs [] = []
 cloneRefs (x :: xs) = (x, x) :: cloneRefs xs
 
 genClones : List (String, String) -> String -> String
-genClones [] scope = scope
-genClones ((from, to) :: xs) scope =
-  wrapLet to (wrapClone from) (genClones xs scope)
+genClones xs scope = "{ " ++ showSep "; " (map genLet xs ++ [scope]) ++ " }"
+  where
+    genLet : (String, String) -> String
+    genLet (from, to) = "let " ++ to ++  " = " ++ (wrapClone from)
 
 deleteArgs : List RustMN -> SortedMap RustMN Nat -> SortedMap RustMN Nat
 deleteArgs [] usedIds = usedIds
