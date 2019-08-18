@@ -203,11 +203,11 @@ mutual
   genExpr (RLam n scope) = do
     (innerScope, scopeRefs) <- genExpr scope
     usedIds <- get
-    let introducedVarName = genRustMN n
-    let subRefs = filter (/= introducedVarName) scopeRefs
-    let repeatClones = cloneRefs subRefs
     let newClones = freshClones [n] usedIds
-    let newScope = genClones (repeatClones ++ newClones) innerScope
+    let introducedVarNames = genRustMN n :: map snd newClones
+    let subRefs = filter (\argRef => not (argRef `elem` introducedVarNames)) scopeRefs
+    let repeatClones = cloneRefs subRefs
+    let newScope = genClones (newClones ++ repeatClones) innerScope
     put (deleteArgs [n] usedIds)
     pure $ ("Arc::new(Lambda(Box::new(move |" ++ genRustMN n ++ ": Arc<IdrisValue>| { " ++ newScope ++ " })))", subRefs)
   genExpr (RApp expr args) = do
