@@ -25,7 +25,7 @@ pub enum IdrisValue {
     Str(String),
     Lambda(Arc<dyn Fn(IdrisValue) -> IdrisValue>),
     Delay(Arc<dyn Fn() -> IdrisValue>),
-    DataCon { tag: u32, args: Vec<IdrisValue> },
+    DataCon { tag: u32, args: Vec<Arc<IdrisValue>> },
     Erased,
     World,
 }
@@ -59,7 +59,7 @@ impl IdrisValue {
         if let Delay(x) = self { x } else { panic!("Expected IdrisValue::Delay") }
     }
 
-    pub fn unwrap_data_con(&self) -> (&u32, &Vec<IdrisValue>) {
+    pub fn unwrap_data_con(&self) -> (&u32, &Vec<Arc<IdrisValue>>) {
         if let DataCon { tag, args } = self { (tag, args) } else { panic!("Expected IdrisValue::DataCon") }
     }
 }
