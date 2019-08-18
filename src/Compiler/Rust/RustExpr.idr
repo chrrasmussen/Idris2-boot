@@ -72,13 +72,6 @@ showSep sep [] = ""
 showSep sep [x] = x
 showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
 
-wrapLet : String -> String -> String -> String
-wrapLet n val scope =
-  "{ let " ++ n ++  " = " ++ val ++ "; " ++ scope ++ " }"
-
-wrapClone : String -> String
-wrapClone varName = varName ++ ".clone()"
-
 
 -- RUST EXPR TO STRING
 
@@ -136,7 +129,7 @@ genClones : List (String, String) -> String -> String
 genClones xs scope = "{ " ++ showSep "; " (map genLet xs ++ [scope]) ++ " }"
   where
     genLet : (String, String) -> String
-    genLet (from, to) = "let " ++ to ++  " = " ++ (wrapClone from)
+    genLet (from, to) = "let " ++ to ++  " = " ++ from ++ ".clone()"
 
 deleteArgs : List RustMN -> SortedMap RustMN Nat -> SortedMap RustMN Nat
 deleteArgs [] usedIds = usedIds
@@ -199,7 +192,7 @@ mutual
     put (deleteArgs [n] usedIds)
     let introducedVarName = genRustMN n
     let subRefs = valueRefs ++ filter (/= introducedVarName) scopeRefs
-    pure $ (wrapLet (genRustMN n) outValue newScope, subRefs)
+    pure $ ("{ let " ++ (genRustMN n) ++  " = " ++ outValue ++ "; " ++ newScope ++ " }", subRefs)
   genExpr (RLam n scope) = do
     (innerScope, scopeRefs) <- genExpr scope
     usedIds <- get
