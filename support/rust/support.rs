@@ -232,7 +232,7 @@ pub fn idris_rts_str_to_double(x: IdrisValue) -> IdrisValue {
 
 pub fn idris_rts_put_str(x: IdrisValue) -> IdrisValue {
     print!("{}", x.unwrap_str());
-    Erased
+    DataCon { tag: 0, args: vec![] } // MkUnit
 }
 
 pub fn idris_rts_get_str() -> IdrisValue {
