@@ -9,6 +9,7 @@ use std::char;
 use std::str::FromStr;
 use std::fmt;
 use std::sync::Arc;
+use std::thread::{self, JoinHandle};
 use std::io::{self, BufRead};
 // use num_bigint::BigInt;
 // use num_traits::Zero;
@@ -25,10 +26,13 @@ pub enum IdrisValue {
     Str(String),
     Lambda(Arc<dyn Fn(IdrisValue) -> IdrisValue>),
     Delay(Arc<dyn Fn() -> IdrisValue>),
+    ThreadId(Arc<JoinHandle<()>>),
     DataCon { tag: u32, args: Vec<Arc<IdrisValue>> },
     Erased,
     World,
 }
+
+unsafe impl Send for IdrisValue {}
 
 impl IdrisValue {
     pub fn unwrap_int(&self) -> &i64 {
@@ -59,6 +63,10 @@ impl IdrisValue {
         if let Delay(x) = self { x } else { panic!("Expected IdrisValue::Delay") }
     }
 
+    pub fn unwrap_thread_id(&self) -> &Arc<JoinHandle<()>> {
+        if let ThreadId(x) = self { x } else { panic!("Expected IdrisValue::ThreadId") }
+    }
+
     pub fn unwrap_data_con(&self) -> (&u32, &Vec<Arc<IdrisValue>>) {
         if let DataCon { tag, args } = self { (tag, args) } else { panic!("Expected IdrisValue::DataCon") }
     }
@@ -74,6 +82,7 @@ impl fmt::Debug for IdrisValue {
             Str(x) => write!(f, "Str({})", x),
             Lambda(_) => write!(f, "Lambda(_)"),
             Delay(_) => write!(f, "Delay(_)"),
+            ThreadId(_) => write!(f, "ThreadId(_)"),
             DataCon { tag, args } => write!(f, "DataCon {{ tag: {}, args: {:?} }}", tag, args),
             Erased => write!(f, "Erased"),
             World => write!(f, "World"),

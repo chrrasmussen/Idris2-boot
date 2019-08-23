@@ -64,9 +64,11 @@ export
 getLine : IO String
 getLine = primIO prim__getStr
 
+%extern prim__fork : (1 prog : IO ()) -> (1 x : %World) -> IORes ThreadID
+
 export
 fork : (1 prog : IO ()) -> IO ThreadID
-fork (MkIO act) = schemeCall ThreadID "blodwen-thread" [act]
+fork act = primIO (prim__fork act)
 
 unsafeCreateWorld : (1 f : (1 x : %World) -> a) -> a
 unsafeCreateWorld f = f %MkWorld

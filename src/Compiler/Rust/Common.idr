@@ -60,6 +60,7 @@ lookupSVar (Later p) (n :: ns) = lookupSVar p ns
 ||| Extended primitives for the Rust backend, outside the standard set of primFn
 public export
 data ExtPrim = CCall | PutStr | GetStr
+             | Fork
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
              | Stdin | Stdout | Stderr
@@ -70,6 +71,7 @@ Show ExtPrim where
   show CCall = "CCall"
   show PutStr = "PutStr"
   show GetStr = "GetStr"
+  show Fork = "Fork"
   show FileOpen = "FileOpen"
   show FileClose = "FileClose"
   show FileReadLine = "FileReadLine"
@@ -90,6 +92,7 @@ toPrim pn@(NS _ n)
     = cond [(n == UN "prim__cCall", CCall),
             (n == UN "prim__putStr", PutStr),
             (n == UN "prim__getStr", GetStr),
+            (n == UN "prim__fork", Fork),
             (n == UN "prim__open", FileOpen),
             (n == UN "prim__close", FileClose),
             (n == UN "prim__readLine", FileReadLine),
@@ -280,6 +283,9 @@ mutual
   rustExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core RustExpr
   rustExtPrim i vs PutStr [arg, world] = pure $ rustWorld $ RApp (RRefUN (UN "idris_rts_put_str")) [!(rustExp i vs arg)]
   rustExtPrim i vs GetStr [world] = pure $ rustWorld $ RApp (RRefUN (UN "idris_rts_get_str")) []
+  rustExtPrim i vs Fork [action, world] = do
+    let runAction = CApp EmptyFC (CRef EmptyFC (NS ["PrimIO"] (UN "unsafePerformIO"))) [CErased EmptyFC, action]
+    pure $ rustWorld $ RFork !(rustExp i vs runAction)
   rustExtPrim i vs prim args = throw (InternalError ("Badly formed external primitive " ++ show prim ++ " " ++ show args))
 
 rustArgList : SVars ns -> List RustMN

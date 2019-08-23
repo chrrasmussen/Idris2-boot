@@ -48,6 +48,7 @@ mutual
     RStrConstCase : RustExpr -> List RustConstAlt -> Maybe RustExpr -> RustExpr
     RDelay : RustExpr -> RustExpr
     RForce : RustExpr -> RustExpr
+    RFork : RustExpr -> RustExpr
     RErased : RustExpr
     RCrash : String -> RustExpr
 
@@ -261,6 +262,10 @@ mutual
   genExpr (RForce scope) = do
     (innerScope, scopeRefs) <- genExpr scope
     pure $ ("(" ++ innerScope ++ ".unwrap_delay())()", scopeRefs)
+  genExpr (RFork scope) = do
+    (innerScope, scopeRefs) <- genExpr scope
+    let newScope = genClones (cloneRefs scopeRefs) innerScope
+    pure $ ("ThreadId(Arc::new(thread::spawn(move || { " ++ newScope ++ "; () })))", scopeRefs)
   genExpr RErased = pure $ ("Erased", [])
   genExpr (RCrash msg) = pure $ ("{ let x: IdrisValue = panic!(\"" ++ msg ++ "\"); x }", [])
 
