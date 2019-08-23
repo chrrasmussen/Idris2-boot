@@ -151,7 +151,7 @@ mutual
   where
     genAssignment : (Nat, RustMN) -> String
     genAssignment (index, name) =
-      "let " ++ genRustMN name ++ " = (*args[" ++ show index ++ "]).clone()"
+      "let " ++ genRustMN name ++ " = (&args[" ++ show index ++ "]).clone()"
 
   genConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) (String, List String)
   genConstAlt (MkConstAlt constant scope) = do
@@ -217,8 +217,7 @@ mutual
     argsResult <- traverse genExpr args
     let outArgs = map fst argsResult
     let subRefs = concat (map snd argsResult)
-    let wrappedArgs = map (\arg => "Arc::new(" ++ arg ++ ")") outArgs
-    pure $ ("DataCon { tag: " ++ show tag ++ ", args: vec![" ++ showSep ", " wrappedArgs ++ "]}", subRefs)
+    pure $ ("DataCon { tag: " ++ show tag ++ ", args: Arc::new(vec![" ++ showSep ", " outArgs ++ "])}", subRefs)
   genExpr (RBinOp ty fnName val1 val2) = do
     (outVal1, val1Refs) <- genExpr val1
     (outVal2, val2Refs) <- genExpr val2

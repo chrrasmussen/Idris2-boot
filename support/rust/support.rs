@@ -27,7 +27,7 @@ pub enum IdrisValue {
     Lambda(Arc<dyn Fn(IdrisValue) -> IdrisValue>),
     Delay(Arc<dyn Fn() -> IdrisValue>),
     ThreadId(Arc<JoinHandle<()>>),
-    DataCon { tag: u32, args: Vec<Arc<IdrisValue>> },
+    DataCon { tag: u32, args: Arc<Vec<IdrisValue>> },
     Erased,
     World,
 }
@@ -67,7 +67,7 @@ impl IdrisValue {
         if let ThreadId(x) = self { x } else { panic!("Expected IdrisValue::ThreadId") }
     }
 
-    pub fn unwrap_data_con(&self) -> (&u32, &Vec<Arc<IdrisValue>>) {
+    pub fn unwrap_data_con(&self) -> (&u32, &Arc<Vec<IdrisValue>>) {
         if let DataCon { tag, args } = self { (tag, args) } else { panic!("Expected IdrisValue::DataCon") }
     }
 }
@@ -241,7 +241,7 @@ pub fn idris_rts_str_to_double(x: IdrisValue) -> IdrisValue {
 
 pub fn idris_rts_put_str(x: IdrisValue) -> IdrisValue {
     print!("{}", x.unwrap_str());
-    DataCon { tag: 0, args: vec![] } // MkUnit
+    DataCon { tag: 0, args: Arc::new(vec![]) } // MkUnit
 }
 
 pub fn idris_rts_get_str() -> IdrisValue {
