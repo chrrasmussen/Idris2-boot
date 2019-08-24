@@ -23,7 +23,7 @@ pub enum IdrisValue {
     // Integer(BigInt),
     Char(char),
     Double(f64),
-    Str(String),
+    Str(Arc<String>),
     Lambda(Arc<dyn Fn(IdrisValue) -> IdrisValue>),
     Delay(Arc<dyn Fn() -> IdrisValue>),
     ThreadId(Arc<JoinHandle<()>>),
@@ -51,7 +51,7 @@ impl IdrisValue {
         if let Double(x) = self { x } else { panic!("Expected IdrisValue::Double") }
     }
 
-    pub fn unwrap_str(&self) -> &String {
+    pub fn unwrap_str(&self) -> &Arc<String> {
         if let Str(x) = self { x } else { panic!("Expected IdrisValue::Str") }
     }
 
@@ -139,7 +139,7 @@ pub fn idris_rts_str_head(x: IdrisValue) -> IdrisValue {
 }
 
 pub fn idris_rts_str_tail(x: IdrisValue) -> IdrisValue {
-    Str(x.unwrap_str().chars().into_iter().skip(1).collect())
+    Str(Arc::new(x.unwrap_str().chars().into_iter().skip(1).collect()))
 }
 
 pub fn idris_rts_str_index(x: IdrisValue, index: IdrisValue) -> IdrisValue {
@@ -148,21 +148,21 @@ pub fn idris_rts_str_index(x: IdrisValue, index: IdrisValue) -> IdrisValue {
 }
 
 pub fn idris_rts_str_cons(x: IdrisValue, y: IdrisValue) -> IdrisValue {
-    Str(format!("{}{}", x.unwrap_char(), y.unwrap_str()))
+    Str(Arc::new(format!("{}{}", x.unwrap_char(), y.unwrap_str())))
 }
 
 pub fn idris_rts_str_append(x: IdrisValue, y: IdrisValue) -> IdrisValue {
-    Str(format!("{}{}", x.unwrap_str(), y.unwrap_str()))
+    Str(Arc::new(format!("{}{}", x.unwrap_str(), y.unwrap_str())))
 }
 
 pub fn idris_rts_str_reverse(x: IdrisValue) -> IdrisValue {
-    Str(x.unwrap_str().chars().rev().collect())
+    Str(Arc::new(x.unwrap_str().chars().rev().collect()))
 }
 
 pub fn idris_rts_str_substr(offset: IdrisValue, length: IdrisValue, x: IdrisValue) -> IdrisValue {
     let o = usize::try_from(*offset.unwrap_int()).unwrap();
     let l = usize::try_from(*length.unwrap_int()).unwrap();
-    Str(x.unwrap_str().chars().into_iter().skip(o).take(l).collect())
+    Str(Arc::new(x.unwrap_str().chars().into_iter().skip(o).take(l).collect()))
 }
 
 
@@ -194,7 +194,7 @@ pub fn idris_rts_int_to_char(x: IdrisValue) -> IdrisValue {
 }
 
 pub fn idris_rts_int_to_str(x: IdrisValue) -> IdrisValue {
-    Str(x.unwrap_int().to_string())
+    Str(Arc::new(x.unwrap_int().to_string()))
 }
 
 
@@ -207,7 +207,7 @@ pub fn idris_rts_double_to_int(x: IdrisValue) -> IdrisValue {
 }
 
 pub fn idris_rts_double_to_str(x: IdrisValue) -> IdrisValue {
-    Str(x.unwrap_double().to_string())
+    Str(Arc::new(x.unwrap_double().to_string()))
 }
 
 
@@ -220,7 +220,7 @@ pub fn idris_rts_char_to_int(x: IdrisValue) -> IdrisValue {
 }
 
 pub fn idris_rts_char_to_str(x: IdrisValue) -> IdrisValue {
-    Str(x.unwrap_char().to_string())
+    Str(Arc::new(x.unwrap_char().to_string()))
 }
 
 
@@ -247,5 +247,5 @@ pub fn idris_rts_put_str(x: IdrisValue) -> IdrisValue {
 pub fn idris_rts_get_str() -> IdrisValue {
     let stdin = io::stdin();
     let line1 = stdin.lock().lines().next().unwrap().unwrap();
-    Str(line1)
+    Str(Arc::new(line1))
 }

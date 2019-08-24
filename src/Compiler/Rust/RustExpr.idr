@@ -112,7 +112,7 @@ genConstant (CChar x) = "Char('\\u{" ++ toHex x ++ "}')"
   where
     toHex : Char -> String
     toHex c = substr 2 6 (b32ToHexString (fromInteger (cast (ord c))))
-genConstant (CStr x) = "Str(" ++ genStringLiteral x ++ ".to_string())"
+genConstant (CStr x) = "Str(Arc::new(" ++ genStringLiteral x ++ ".to_string()))"
 genConstant CWorld = "World"
 
 freshClones : List RustMN -> SortedMap RustMN Nat -> List (String, String)
@@ -161,7 +161,7 @@ mutual
   genStrConstAlt : RustConstAlt -> State (SortedMap RustMN Nat) (String, List String)
   genStrConstAlt (MkConstAlt (CStr str) scope) = do
     (innerScope, scopeRefs) <- genExpr scope
-    pure $ (genStringLiteral str ++ " => { " ++ innerScope ++ " }", scopeRefs)
+    pure $ ("x if x == " ++ genStringLiteral str ++ " => { " ++ innerScope ++ " }", scopeRefs)
   genStrConstAlt (MkConstAlt _ _) =
     pure $ ("_ => panic!(\"Expected CStr in ConstAlt\")", [])
 
