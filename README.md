@@ -1,3 +1,5 @@
+**This branch adds Rust as a new backend to Idris 2. It was created as an experiment. The codegen only has a few primitives implemented and its performance is very bad, i.e. the generated code is at least 10x slower than Chez in many cases.**
+
 Idris 2
 =======
 
