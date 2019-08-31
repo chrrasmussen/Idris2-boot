@@ -4,7 +4,7 @@ import Compiler.Scheme.Chez
 import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
 import Compiler.Common
-import Compiler.Swift.Swift
+import Compiler.JavaScript.JavaScript
 
 import Core.AutoSearch
 import Core.CaseTree
@@ -218,7 +218,7 @@ findCG
               Chez => pure codegenChez
               Chicken => pure codegenChicken
               Racket => pure codegenRacket
-              Swift => pure codegenSwift
+              JavaScript => pure codegenJavaScript
 
 export
 compileExp : {auto c : Ref Ctxt Defs} ->

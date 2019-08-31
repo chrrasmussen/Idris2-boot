@@ -28,19 +28,19 @@ public export
 data CG = Chez
         | Chicken
         | Racket
-        | Swift
+        | JavaScript
 
 export
 Eq CG where
   Chez == Chez = True
   Chicken == Chicken = True
   Racket == Racket = True
-  Swift == Swift = True
+  JavaScript == JavaScript = True
   _ == _ = False
 
 export
 availableCGs : List (String, CG)
-availableCGs = [("chez", Chez), ("chicken", Chicken), ("racket", Racket), ("swift", Swift)]
+availableCGs = [("chez", Chez), ("chicken", Chicken), ("racket", Racket), ("javascript", JavaScript)]
 
 export
 getCG : String -> Maybe CG

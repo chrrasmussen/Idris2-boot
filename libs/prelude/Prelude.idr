@@ -875,8 +875,8 @@ fastPack xs
     toFArgs [] = []
     toFArgs (x :: xs) = x :: toFArgs xs
 
--- NOTE: The following implementation of `unpack` is faster in Swift.
--- The Swift codegen has an O(n) implementation of `prim__strIndex` in order
+-- NOTE: The following implementation of `unpack` is faster in JavaScript.
+-- The JavaScript codegen has an O(n) implementation of `prim__strIndex` in order
 -- to support all unicode characters (which can consist of multiple codepoints).
 public export
 unpack : String -> List Char
