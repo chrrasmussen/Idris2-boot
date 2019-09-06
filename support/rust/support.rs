@@ -24,8 +24,8 @@ pub enum IdrisValue {
     Char(char),
     Double(f64),
     Str(Arc<String>),
-    Lambda(Arc<dyn Fn(IdrisValue) -> IdrisValue>),
-    Delay(Arc<dyn Fn() -> IdrisValue>),
+    Lambda(Box<dyn IdrisLambda>),
+    Delay(Box<dyn IdrisDelay>),
     ThreadId(Arc<JoinHandle<()>>),
     DataCon { tag: u32, args: Arc<Vec<IdrisValue>> },
     Erased,
@@ -33,6 +33,55 @@ pub enum IdrisValue {
 }
 
 unsafe impl Send for IdrisValue {}
+
+
+// LAMBDA TRAIT
+
+pub trait IdrisLambda {
+    fn run(&self, x: IdrisValue) -> IdrisValue;
+    fn clone_box(&self) -> Box<dyn IdrisLambda>;
+}
+
+impl<F> IdrisLambda for F where F: 'static + Fn(IdrisValue) -> IdrisValue + Clone + Send {
+    fn run(&self, x: IdrisValue) -> IdrisValue {
+        self(x)
+    }
+
+    fn clone_box(&self) -> Box<dyn IdrisLambda> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn IdrisLambda> {
+    fn clone(&self) -> Box<dyn IdrisLambda> {
+        self.clone_box()
+    }
+}
+
+
+// DELAY TRAIT
+
+pub trait IdrisDelay {
+    fn run(&self) -> IdrisValue;
+    fn clone_box(&self) -> Box<dyn IdrisDelay>;
+}
+
+impl<F> IdrisDelay for F where F: 'static + Fn() -> IdrisValue + Clone + Send {
+    fn run(&self) -> IdrisValue {
+        self()
+    }
+
+    fn clone_box(&self) -> Box<dyn IdrisDelay> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn IdrisDelay> {
+    fn clone(&self) -> Box<dyn IdrisDelay> {
+        self.clone_box()
+    }
+}
+
 
 impl IdrisValue {
     pub fn unwrap_int(&self) -> &i64 {
@@ -55,11 +104,11 @@ impl IdrisValue {
         if let Str(x) = self { x } else { panic!("Expected IdrisValue::Str") }
     }
 
-    pub fn unwrap_lambda(&self) -> &Arc<dyn Fn(IdrisValue) -> IdrisValue> {
+    pub fn unwrap_lambda(&self) -> &Box<dyn IdrisLambda> {
         if let Lambda(x) = self { x } else { panic!("Expected IdrisValue::Lambda") }
     }
 
-    pub fn unwrap_delay(&self) -> &Arc<dyn Fn() -> IdrisValue> {
+    pub fn unwrap_delay(&self) -> &Box<dyn IdrisDelay> {
         if let Delay(x) = self { x } else { panic!("Expected IdrisValue::Delay") }
     }
 
@@ -89,6 +138,7 @@ impl fmt::Debug for IdrisValue {
         }
     }
 }
+
 
 // WRAPPING INT
 

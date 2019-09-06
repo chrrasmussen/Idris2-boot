@@ -203,16 +203,16 @@ mutual
     let repeatClones = cloneRefs subRefs
     let newScope = genClones (newClones ++ repeatClones) innerScope
     put (deleteArgs [n] usedIds)
-    pure $ ("Lambda(Arc::new(move |" ++ genRustMN n ++ ": IdrisValue| { " ++ newScope ++ " }))", subRefs)
+    pure $ ("Lambda(Box::new(move |" ++ genRustMN n ++ ": IdrisValue| { " ++ newScope ++ " }))", subRefs)
   genExpr (RApp expr args) = do
     argsResult <- traverse genExpr args
     (outExpr, exprRefs) <- genExpr expr
-    let calledExpr = case expr of
-      RRefUN (UN fnName) => fnName
-      _ => "(" ++ outExpr ++ ".unwrap_lambda())"
     let outArgs = map fst argsResult
     let subRefs = concat (map snd argsResult) ++ exprRefs
-    pure $ (calledExpr ++ "(" ++ showSep ", " outArgs ++ ")", subRefs)
+    let calledExpr = case expr of
+      RRefUN (UN fnName) => fnName ++ "(" ++ showSep ", " outArgs ++ ")"
+      _ => "(" ++ outExpr ++ ".unwrap_lambda()).run(" ++ showSep ", " outArgs ++ ")"
+    pure $ (calledExpr, subRefs)
   genExpr (RCon tag args) = do
     argsResult <- traverse genExpr args
     let outArgs = map fst argsResult
@@ -257,10 +257,10 @@ mutual
   genExpr (RDelay scope) = do
     (innerScope, scopeRefs) <- genExpr scope
     let newScope = genClones (cloneRefs scopeRefs) innerScope
-    pure $ ("Delay(Arc::new(move || { " ++ newScope ++ " }))", scopeRefs)
+    pure $ ("Delay(Box::new(move || { " ++ newScope ++ " }))", scopeRefs)
   genExpr (RForce scope) = do
     (innerScope, scopeRefs) <- genExpr scope
-    pure $ ("(" ++ innerScope ++ ".unwrap_delay())()", scopeRefs)
+    pure $ ("(" ++ innerScope ++ ".unwrap_delay()).run()", scopeRefs)
   genExpr (RFork scope) = do
     (innerScope, scopeRefs) <- genExpr scope
     let newScope = genClones (cloneRefs scopeRefs) innerScope
