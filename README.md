@@ -1,3 +1,5 @@
+**This branch adds JavaScript as a new backend to Idris 2. It was created as an experiment. The codegen only has a few primitives implemented.**
+
 Idris 2
 =======
 
