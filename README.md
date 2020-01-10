@@ -1,3 +1,12 @@
+**Experiments**
+
+This fork of Idris 2 includes some experimental code generators:
+- [Erlang](https://github.com/chrrasmussen/Idris2-boot/tree/erlang-codegen) — Currently maintained at: https://github.com/chrrasmussen/Idris2-Erlang
+- [Rust](https://github.com/chrrasmussen/Idris2-boot/tree/rust-codegen) — Status: Inactive
+- [Swift](https://github.com/chrrasmussen/Idris2-boot/tree/swift-codegen) — Status: Inactive
+- [JavaScript](https://github.com/chrrasmussen/Idris2-boot/tree/javascript-codegen) — Status: Inactive
+
+
 Idris 2
 =======
 
